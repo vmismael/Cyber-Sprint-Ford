@@ -71,6 +71,7 @@ export default function OnboardingStep4() {
           label="Quilometragem mensal"
           placeholder="Ex.: 1500"
           keyboardType="number-pad"
+          maxLength={5}
           error={errors.monthlyKm?.message}
           hint="Entre 100 e 20.000 km"
         />

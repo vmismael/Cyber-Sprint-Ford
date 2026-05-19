@@ -1,4 +1,7 @@
+import { verifyPayload } from '@/utils/hmac';
 import type { Booking, SchedulingDraft } from '@/types/scheduling';
+
+export const MOCK_API_SECRET = 'ford-intelligence-mock-secret-v1';
 
 const delay = (min: number, max: number) =>
   new Promise<void>((resolve) =>
@@ -54,18 +57,24 @@ export type CreateBookingPayload = Required<
   notes?: string;
 };
 
-export async function createBooking(payload: CreateBookingPayload): Promise<Booking> {
+export async function createBooking(
+  payload: CreateBookingPayload & { _sig: string },
+): Promise<Booking> {
+  const { _sig, ...draft } = payload;
+  const valid = await verifyPayload(JSON.stringify(draft), _sig, MOCK_API_SECRET);
+  if (!valid) throw new Error('Assinatura inválida.');
+
   await delay(500, 800);
   return {
     id: generateId(),
     protocol: generateProtocol(),
-    dealerId: payload.dealerId,
-    service: payload.service,
-    mode: payload.mode,
-    date: payload.date,
-    slot: payload.slot,
-    pickupAddress: payload.pickupAddress,
-    notes: payload.notes,
+    dealerId: draft.dealerId,
+    service: draft.service,
+    mode: draft.mode,
+    date: draft.date,
+    slot: draft.slot,
+    pickupAddress: draft.pickupAddress,
+    notes: draft.notes,
     createdAt: new Date().toISOString(),
     status: 'confirmed',
   };

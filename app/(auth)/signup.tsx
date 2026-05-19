@@ -7,13 +7,21 @@ import { z } from 'zod';
 import { Button, Input, Screen, Text } from '@/components';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { toSafeMessage } from '@/utils/safeError';
 
 const signupSchema = z
   .object({
-    name: z.string().min(2, 'Informe seu nome'),
-    email: z.string().min(1, 'Informe seu e-mail').email('E-mail inválido'),
-    password: z.string().min(6, 'Mínimo de 6 caracteres'),
-    confirm: z.string().min(6, 'Confirme sua senha'),
+    name: z
+      .string()
+      .min(2, 'Informe seu nome')
+      .max(100, 'Máximo de 100 caracteres'),
+    email: z
+      .string()
+      .min(1, 'Informe seu e-mail')
+      .email('E-mail inválido')
+      .max(254, 'E-mail muito longo'),
+    password: z.string().min(8, 'Mínimo de 8 caracteres'),
+    confirm: z.string().min(8, 'Confirme sua senha'),
   })
   .refine((data) => data.password === data.confirm, {
     path: ['confirm'],
@@ -42,7 +50,7 @@ export default function SignupScreen() {
     try {
       await signup({ name, email, password });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Falha ao criar conta.');
+      setSubmitError(toSafeMessage(err));
     }
   });
 
@@ -66,6 +74,7 @@ export default function SignupScreen() {
             label="Nome completo"
             placeholder="Como devemos te chamar?"
             autoCapitalize="words"
+            maxLength={100}
             error={errors.name?.message}
           />
           <Input
@@ -76,14 +85,16 @@ export default function SignupScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+            maxLength={254}
             error={errors.email?.message}
           />
           <Input
             control={control}
             name="password"
             label="Senha"
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Mínimo 8 caracteres"
             secureTextEntry
+            maxLength={128}
             error={errors.password?.message}
           />
           <Input
@@ -92,6 +103,7 @@ export default function SignupScreen() {
             label="Confirmar senha"
             placeholder="Repita a senha"
             secureTextEntry
+            maxLength={128}
             error={errors.confirm?.message}
           />
         </View>

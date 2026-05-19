@@ -9,9 +9,13 @@ import { StepHeader } from '@/features/scheduling/StepHeader';
 import { useSchedulingStore } from '@/stores/useSchedulingStore';
 import { fetchAddressSuggestions } from '@/services/mocks/dealersApi';
 import { useTheme } from '@/theme/ThemeProvider';
+import { sanitizeString } from '@/utils/sanitize';
 
 const schema = z.object({
-  pickupAddress: z.string().min(8, 'Informe um endereço com pelo menos 8 caracteres.'),
+  pickupAddress: z
+    .string()
+    .min(8, 'Informe um endereço com pelo menos 8 caracteres.')
+    .max(200, 'Máximo de 200 caracteres.'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -64,7 +68,7 @@ export default function SchedulingAddressStep() {
   }, [query]);
 
   const onSubmit = handleSubmit((values) => {
-    updateDraft({ pickupAddress: values.pickupAddress });
+    updateDraft({ pickupAddress: sanitizeString(values.pickupAddress) });
     router.push('/scheduling/datetime');
   });
 
@@ -85,6 +89,7 @@ export default function SchedulingAddressStep() {
           placeholder="Ex.: Av. Paulista, 1500"
           error={errors.pickupAddress?.message}
           autoCapitalize="words"
+          maxLength={200}
         />
 
         {suggestions.length > 0 ? (

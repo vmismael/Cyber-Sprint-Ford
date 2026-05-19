@@ -5,7 +5,8 @@ import { Button, Card, Icon, Screen, Text } from '@/components';
 import { StepHeader } from '@/features/scheduling/StepHeader';
 import { useSchedulingStore } from '@/stores/useSchedulingStore';
 import { fetchDealerById } from '@/services/mocks/dealersApi';
-import { createBooking } from '@/services/mocks/schedulingApi';
+import { createBooking, MOCK_API_SECRET } from '@/services/mocks/schedulingApi';
+import { signPayload } from '@/utils/hmac';
 import {
   MODE_LABEL,
   SERVICE_LABEL,
@@ -63,7 +64,7 @@ export default function SchedulingConfirmStep() {
     }
     setSubmitting(true);
     try {
-      const booking = await createBooking({
+      const bookingPayload = {
         dealerId: draft.dealerId,
         service: draft.service,
         mode: draft.mode,
@@ -71,7 +72,9 @@ export default function SchedulingConfirmStep() {
         slot: draft.slot,
         pickupAddress: draft.pickupAddress,
         notes: draft.notes,
-      });
+      };
+      const sig = await signPayload(JSON.stringify(bookingPayload), MOCK_API_SECRET);
+      const booking = await createBooking({ ...bookingPayload, _sig: sig });
       await commitBooking(booking);
       router.replace({ pathname: '/scheduling/success', params: { protocol: booking.protocol } });
     } catch {

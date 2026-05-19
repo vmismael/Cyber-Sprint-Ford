@@ -1,4 +1,7 @@
+import { verifyPayload } from '@/utils/hmac';
 import type { UserProfile, UsageStyle } from '@/stores/useUserStore';
+
+export const MOCK_API_SECRET = 'ford-intelligence-mock-secret-v1';
 
 export type SubmitProfileResponse = {
   riskScore: number;
@@ -18,7 +21,13 @@ const usageWeight: Record<UsageStyle, number> = {
   performance: 1.5,
 };
 
-export async function submitProfile(profile: UserProfile): Promise<SubmitProfileResponse> {
+export async function submitProfile(
+  payload: UserProfile & { _sig: string },
+): Promise<SubmitProfileResponse> {
+  const { _sig, ...profile } = payload;
+  const valid = await verifyPayload(JSON.stringify(profile), _sig, MOCK_API_SECRET);
+  if (!valid) throw new Error('Assinatura inválida.');
+
   await delay();
 
   const kmFactor = Math.min(profile.monthlyKm / 1500, 2);
