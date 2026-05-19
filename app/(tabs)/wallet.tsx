@@ -22,8 +22,11 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { GlassPanel, Icon, Screen, Text } from '@/components';
 import { EmptyState } from '@/components/state';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuditStore } from '@/stores/useAuditStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { usePlanStore } from '@/stores/usePlanStore';
+import { hasPermission } from '@/utils/rbac';
 import { CouponCard } from '@/features/cashback/CouponCard';
 import type { Coupon, Transaction } from '@/features/cashback/types';
 
@@ -116,6 +119,8 @@ const CELEBRATE_DOTS = [
 export default function WalletScreen() {
   const theme = useTheme();
   const tabBarHeight = useBottomTabBarHeight();
+  const user = useAuthStore((s) => s.user);
+  const logAudit = useAuditStore((s) => s.log);
   const planId = usePlanStore((s) => s.plan);
 
   const balance = useWalletStore((s) => s.balance);
@@ -132,6 +137,14 @@ export default function WalletScreen() {
   const [displayBalance, setDisplayBalance] = useState(0);
   const [segmentWidth, setSegmentWidth] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  const permitted = hasPermission(user, 'view:wallet');
+
+  useEffect(() => {
+    if (user && !permitted) {
+      logAudit('permission_denied', user.id, { action: 'view:wallet' });
+    }
+  }, [user, permitted, logAudit]);
 
   const tabIndicator = useSharedValue(0);
   const cardScale = useSharedValue(1);
@@ -240,6 +253,18 @@ export default function WalletScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  if (!permitted) {
+    return (
+      <Screen style={{ flex: 1, justifyContent: 'center' }}>
+        <EmptyState
+          icon="lock-closed-outline"
+          title="Acesso restrito"
+          description="Você não tem permissão para acessar a carteira."
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll={false} padded={false} style={{ flex: 1, gap: 0 }}>

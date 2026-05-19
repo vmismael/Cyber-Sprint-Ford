@@ -4,6 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Button, Card, GlassPanel, Icon, Text, type IconName } from '@/components';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuditStore } from '@/stores/useAuditStore';
+import { hasPermission } from '@/utils/rbac';
 import { fetchLeadById, type LeadDetail } from '@/services/mocks/analystApi';
 import { VEHICLE_LABEL, PLAN_LABEL, STATUS_LABEL, STATUS_TONE, RISK_TONE } from '@/features/analyst-dashboard/leadDisplayMaps';
 import { SkeletonBlock } from '@/features/analyst-dashboard/SkeletonBlock';
@@ -15,12 +18,22 @@ export default function LeadDetailScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
+  const logAudit = useAuditStore((s) => s.log);
 
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionStatus, setActionStatus] = useState<LeadDetail['status'] | null>(null);
 
   useEffect(() => {
+    if (user && !hasPermission(user, 'view:leads')) {
+      logAudit('permission_denied', user.id, { action: 'view:leads', leadId: id });
+      router.back();
+    }
+  }, [user, logAudit, router, id]);
+
+  useEffect(() => {
+    if (!hasPermission(user, 'view:leads')) return;
     let cancelled = false;
     setLoading(true);
     fetchLeadById(id).then((data) => {

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { hasPermission } from '@/utils/rbac';
 
 export function useProtectedRoute() {
   const status = useAuthStore((s) => s.status);
@@ -29,7 +30,7 @@ export function useProtectedRoute() {
     }
 
     // Analyst role — skip onboarding, route directly to analyst area
-    if (user?.role === 'analyst') {
+    if (hasPermission(user, 'view:analyst_dashboard')) {
       if (!inAnalystGroup) {
         router.replace('/(analyst)/dashboard' as never);
       }

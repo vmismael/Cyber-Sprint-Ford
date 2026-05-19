@@ -5,6 +5,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import type { Lead } from '@/services/mocks/analystApi';
 import { VEHICLE_LABEL, PLAN_LABEL, STATUS_LABEL, STATUS_TONE, RISK_TONE } from './leadDisplayMaps';
 import { daysAgo } from '@/utils/date';
+import { maskName } from '@/utils/anonymize';
 
 interface LeadCardProps {
   lead: Lead;
@@ -19,13 +20,13 @@ export function LeadCard({ lead }: LeadCardProps) {
       onPress={() => router.push(`/(analyst)/leads/${lead.id}` as never)}
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
       accessibilityRole="button"
-      accessibilityLabel={`Lead ${lead.clientName}, score ${lead.aiScore}`}
+      accessibilityLabel={`Lead ${maskName(lead.clientName)}, score ${lead.aiScore}`}
     >
       <Card padding="md">
         {/* Row 1: name + score badge */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
           <Text variant="bodyStrong" style={{ flex: 1 }} numberOfLines={1}>
-            {lead.clientName}
+            {maskName(lead.clientName)}
           </Text>
           <Badge label={`IA ${lead.aiScore}`} tone={RISK_TONE[lead.riskLabel]} />
         </View>
