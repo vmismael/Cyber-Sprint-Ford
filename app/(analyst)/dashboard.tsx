@@ -1,11 +1,14 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { Alert, RefreshControl, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Badge, Button, Card, Text } from '@/components';
+import { Badge, Button, Card, Icon, Text } from '@/components';
 import { EmptyState, ErrorState } from '@/components/state';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAnalystStore } from '@/stores/useAnalystStore';
+import { useAuditStore, type AuditEventType } from '@/stores/useAuditStore';
+import { hasPermission } from '@/utils/rbac';
 import { KPICard } from '@/features/analyst-dashboard/KPICard';
 import { LeadCard } from '@/features/analyst-dashboard/LeadCard';
 import { FilterChipRow } from '@/features/analyst-dashboard/FilterChipRow';
@@ -27,11 +30,58 @@ const PLAN_OPTIONS = [
   { key: 'premium', label: 'Premium' },
 ];
 
+const AUDIT_LABEL: Record<AuditEventType, string> = {
+  login: 'Login',
+  logout: 'Logout',
+  login_failed: 'Falha de login',
+  token_expired: 'Token expirado',
+  permission_denied: 'Acesso negado',
+  lockout_activated: 'Bloqueio ativo',
+  lockout_lifted: 'Bloqueio encerrado',
+};
+
+const AUDIT_TONE: Record<AuditEventType, 'success' | 'neutral' | 'warn' | 'critical' | 'info'> = {
+  login: 'success',
+  logout: 'neutral',
+  login_failed: 'warn',
+  token_expired: 'warn',
+  permission_denied: 'critical',
+  lockout_activated: 'critical',
+  lockout_lifted: 'neutral',
+};
+
+const AUDIT_ICON: Record<AuditEventType, string> = {
+  login: 'log-in-outline',
+  logout: 'log-out-outline',
+  login_failed: 'close-circle-outline',
+  token_expired: 'timer-outline',
+  permission_denied: 'shield-outline',
+  lockout_activated: 'lock-closed-outline',
+  lockout_lifted: 'lock-open-outline',
+};
+
+function formatEventTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) +
+    ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function AnalystDashboard() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const logAudit = useAuditStore((s) => s.log);
+  const auditEvents = useAuditStore((s) => s.events);
 
   const kpis          = useAnalystStore((s) => s.kpis);
   const series        = useAnalystStore((s) => s.series);
@@ -41,6 +91,13 @@ export default function AnalystDashboard() {
   const error         = useAnalystStore((s) => s.error);
   const fetchDashboard = useAnalystStore((s) => s.fetchDashboard);
   const setFilter     = useAnalystStore((s) => s.setFilter);
+
+  useEffect(() => {
+    if (user && !hasPermission(user, 'view:analyst_dashboard')) {
+      logAudit('permission_denied', user.id, { action: 'view:analyst_dashboard' });
+      router.replace('/(tabs)');
+    }
+  }, [user, logAudit, router]);
 
   useEffect(() => {
     fetchDashboard();
@@ -219,6 +276,62 @@ export default function AnalystDashboard() {
             ))}
           </View>
         )}
+      </View>
+
+      {/* Security Events */}
+      <View style={{ gap: theme.spacing.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+          <Icon name="shield-checkmark-outline" size={16} color="muted" />
+          <Text
+            variant="label"
+            style={{ flex: 1, textTransform: 'uppercase', letterSpacing: 0.6 }}
+            color="muted"
+          >
+            Security Events
+          </Text>
+          <Badge label={String(auditEvents.length)} tone="neutral" />
+        </View>
+
+        <Card padding="md">
+          {auditEvents.length === 0 ? (
+            <EmptyState
+              icon="shield-outline"
+              title="Nenhum evento registrado"
+              description="Os eventos de segurança desta sessão aparecerão aqui."
+              compact
+            />
+          ) : (
+            <View style={{ gap: 0 }}>
+              {auditEvents.map((ev, idx) => (
+                <View
+                  key={ev.id}
+                  style={{
+                    paddingVertical: theme.spacing.sm,
+                    borderTopWidth: idx === 0 ? 0 : 1,
+                    borderTopColor: theme.colors.border,
+                    gap: theme.spacing.xs,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                    <Icon name={AUDIT_ICON[ev.event] as never} size={14} color="muted" />
+                    <Badge label={AUDIT_LABEL[ev.event]} tone={AUDIT_TONE[ev.event]} />
+                    <Text variant="caption" color="muted" style={{ flex: 1, textAlign: 'right' }}>
+                      {formatEventTime(ev.timestamp)}
+                    </Text>
+                  </View>
+                  {(ev.userId ?? ev.meta) ? (
+                    <Text variant="caption" color="muted" style={{ paddingLeft: 22 }}>
+                      {[
+                        ev.userId && `uid: ${ev.userId}`,
+                        ev.meta && Object.entries(ev.meta).map(([k, v]) => `${k}: ${String(v)}`).join(' · '),
+                      ].filter(Boolean).join(' — ')}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
       </View>
     </ScrollView>
   );
