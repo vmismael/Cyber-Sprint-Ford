@@ -1,6 +1,6 @@
 import { signPayload } from '@/utils/hmac';
 
-export type UserRole = 'client' | 'analyst';
+export type UserRole = 'client' | 'analyst' | 'admin';
 
 export type AuthUser = {
   id: string;

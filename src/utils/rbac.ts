@@ -4,11 +4,13 @@ export type RbacAction =
   | 'view:analyst_dashboard'
   | 'view:leads'
   | 'view:wallet'
-  | 'edit:profile';
+  | 'edit:profile'
+  | 'manage:users';
 
 const PERMISSIONS: Record<UserRole, RbacAction[]> = {
+  admin:   ['view:analyst_dashboard', 'view:leads', 'manage:users', 'edit:profile'],
   analyst: ['view:analyst_dashboard', 'view:leads', 'edit:profile'],
-  client: ['view:wallet', 'edit:profile'],
+  client:  ['view:wallet', 'edit:profile'],
 };
 
 export function hasPermission(user: AuthUser | null, action: RbacAction): boolean {
