@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { z } from 'zod';
 import { secureStorage } from '@/services/secureStorage';
+import { useAuditStore } from './useAuditStore';
 import type { Booking, SchedulingDraft } from '@/types/scheduling';
 
 const BOOKINGS_KEY = 'ford.scheduling.bookings';
@@ -78,6 +79,12 @@ export const useSchedulingStore = create<SchedulingState>((set, get) => ({
   commitBooking: async (booking) => {
     const next = [booking, ...get().bookings];
     await secureStorage.setItem(BOOKINGS_KEY, JSON.stringify(next));
+    useAuditStore.getState().log('booking_created', undefined, {
+      bookingId: booking.id,
+      protocol: booking.protocol,
+      service: booking.service,
+      dealerId: booking.dealerId,
+    });
     set({ bookings: next, draft: {} });
   },
 

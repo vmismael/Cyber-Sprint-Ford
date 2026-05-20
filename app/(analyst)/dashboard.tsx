@@ -38,6 +38,9 @@ const AUDIT_LABEL: Record<AuditEventType, string> = {
   permission_denied: 'Acesso negado',
   lockout_activated: 'Bloqueio ativo',
   lockout_lifted: 'Bloqueio encerrado',
+  booking_created: 'Agendamento criado',
+  lead_accessed: 'Lead acessado',
+  profile_updated: 'Perfil atualizado',
 };
 
 const AUDIT_TONE: Record<AuditEventType, 'success' | 'neutral' | 'warn' | 'critical' | 'info'> = {
@@ -48,6 +51,9 @@ const AUDIT_TONE: Record<AuditEventType, 'success' | 'neutral' | 'warn' | 'criti
   permission_denied: 'critical',
   lockout_activated: 'critical',
   lockout_lifted: 'neutral',
+  booking_created: 'info',
+  lead_accessed: 'info',
+  profile_updated: 'neutral',
 };
 
 const AUDIT_ICON: Record<AuditEventType, string> = {
@@ -58,6 +64,9 @@ const AUDIT_ICON: Record<AuditEventType, string> = {
   permission_denied: 'shield-outline',
   lockout_activated: 'lock-closed-outline',
   lockout_lifted: 'lock-open-outline',
+  booking_created: 'calendar-outline',
+  lead_accessed: 'person-outline',
+  profile_updated: 'create-outline',
 };
 
 function formatEventTime(iso: string): string {

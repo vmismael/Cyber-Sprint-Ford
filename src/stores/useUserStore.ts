@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { z } from 'zod';
 import { secureStorage } from '@/services/secureStorage';
+import { useAuditStore } from './useAuditStore';
 import type { PlanId } from '@/theme/plans';
 
 const PROFILE_KEY = 'ford.user.profile';
@@ -81,6 +82,10 @@ export const useUserStore = create<UserState>((set, get) => ({
       secureStorage.setItem(PROFILE_KEY, JSON.stringify(profile)),
       secureStorage.setItem(ONBOARDING_FLAG, '1'),
     ]);
+    useAuditStore.getState().log('profile_updated', undefined, {
+      vehicleModel: profile.vehicleModel,
+      plan: profile.plan,
+    });
     set({ profile, onboardingComplete: true, draft: {} });
   },
 
@@ -90,6 +95,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     const next = { ...cur, plan };
     try {
       await secureStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+      useAuditStore.getState().log('profile_updated', undefined, { plan });
       set({ profile: next });
     } catch {
       // mantém estado anterior em caso de falha de IO

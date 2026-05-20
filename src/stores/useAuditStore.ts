@@ -7,7 +7,10 @@ export type AuditEventType =
   | 'token_expired'
   | 'permission_denied'
   | 'lockout_activated'
-  | 'lockout_lifted';
+  | 'lockout_lifted'
+  | 'booking_created'
+  | 'lead_accessed'
+  | 'profile_updated';
 
 export type AuditEvent = {
   id: string;

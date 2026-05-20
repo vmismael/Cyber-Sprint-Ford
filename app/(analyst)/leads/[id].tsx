@@ -45,6 +45,7 @@ export default function LeadDetailScreen() {
       setLead(data);
       setActionStatus(data.status);
       setLoading(false);
+      logAudit('lead_accessed', user?.id, { leadId: data.id, clientName: data.clientName });
     });
     return () => {
       cancelled = true;
