@@ -21,7 +21,14 @@ import { useSchedulingStore } from '@/stores/useSchedulingStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { startCriticalAlertHapticListener } from '@/stores/criticalAlertHapticListener';
 import { useProtectedRoute } from '@/hooks/useProtectedRoute';
+import { assertUrlAllowed } from '@/utils/urlAllowlist';
 import 'react-native-reanimated';
+
+// Validate API base URL against allowlist at boot — CORS analogue for React Native.
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
+if (API_BASE) {
+  assertUrlAllowed(API_BASE);
+}
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // hideAsync may already be running on some platforms; ignore.

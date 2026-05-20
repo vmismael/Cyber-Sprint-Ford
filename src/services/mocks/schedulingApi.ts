@@ -1,4 +1,5 @@
 import { verifyPayload } from '@/utils/hmac';
+import { checkRateLimit } from '@/utils/rateLimit';
 import type { Booking, SchedulingDraft } from '@/types/scheduling';
 
 export const MOCK_API_SECRET = 'ford-intelligence-mock-secret-v1';
@@ -60,6 +61,8 @@ export type CreateBookingPayload = Required<
 export async function createBooking(
   payload: CreateBookingPayload & { _sig: string },
 ): Promise<Booking> {
+  checkRateLimit('createBooking', 3, 60_000);
+
   const { _sig, ...draft } = payload;
   const valid = await verifyPayload(JSON.stringify(draft), _sig, MOCK_API_SECRET);
   if (!valid) throw new Error('Assinatura inválida.');
