@@ -4,6 +4,12 @@ import { secureStorage } from '@/services/secureStorage';
 import type { Booking, SchedulingDraft } from '@/types/scheduling';
 
 const BOOKINGS_KEY = 'ford.scheduling.bookings';
+const BOOKING_TTL_DAYS = 90;
+
+function pruneExpiredBookings(bookings: Booking[]): Booking[] {
+  const cutoff = Date.now() - BOOKING_TTL_DAYS * 24 * 60 * 60 * 1000;
+  return bookings.filter((b) => new Date(b.createdAt).getTime() >= cutoff);
+}
 
 const bookingSchema = z.object({
   id: z.string(),
@@ -48,7 +54,8 @@ export const useSchedulingStore = create<SchedulingState>((set, get) => ({
       if (raw) {
         const parsed = bookingsSchema.safeParse(JSON.parse(raw));
         if (parsed.success) {
-          bookings = parsed.data;
+          bookings = pruneExpiredBookings(parsed.data);
+          await secureStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings));
         } else {
           // Dado corrompido — descarta silenciosamente
           await secureStorage.removeItem(BOOKINGS_KEY);
