@@ -1,3 +1,5 @@
+import { ApiRequestError } from '@/services/api/httpClient';
+
 const GENERIC = 'Algo deu errado. Tente novamente.';
 
 // Only surface messages that were explicitly written for the user.
@@ -11,6 +13,8 @@ const ALLOWLIST = new Set([
 ]);
 
 export function toSafeMessage(err: unknown): string {
+  // Mensagens da API real já vêm do campo `detail` do problem+json, escrito para o usuário.
+  if (err instanceof ApiRequestError) return err.message;
   if (err instanceof Error && ALLOWLIST.has(err.message)) {
     return err.message;
   }

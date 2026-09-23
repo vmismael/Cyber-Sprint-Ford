@@ -1,4 +1,14 @@
-const SENSITIVE = new Set(['email', 'password', 'token', 'cpf', 'phone']);
+const SENSITIVE = new Set([
+  'email',
+  'password',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'authorization',
+  'cpf',
+  'phone',
+  'pickupaddress',
+]);
 
 function redact(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;

@@ -3,10 +3,12 @@ import { secureStorage } from '@/services/secureStorage';
 import {
   login as loginApi,
   signup as signupApi,
+  revokeSession,
   type AuthUser,
   type LoginPayload,
   type SignupPayload,
-} from '@/services/mocks/authApi';
+} from '@/services/api/authService';
+import { ApiRequestError, REFRESH_TOKEN_KEY } from '@/services/api/httpClient';
 import { toSafeMessage } from '@/utils/safeError';
 import { logger } from '@/utils/logger';
 import { useUserStore } from './useUserStore';
@@ -60,14 +62,16 @@ type AuthState = {
   clearError: () => void;
 };
 
-async function persistSession(token: string, user: AuthUser) {
+async function persistSession(token: string, user: AuthUser, refreshToken: string | null) {
   await secureStorage.setItem(TOKEN_KEY, token);
   await secureStorage.setItem(USER_KEY, JSON.stringify(user));
+  if (refreshToken) await secureStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
 async function clearSession() {
   await secureStorage.removeItem(TOKEN_KEY);
   await secureStorage.removeItem(USER_KEY);
+  await secureStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -127,8 +131,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ status: 'authenticating', error: null });
     try {
-      const { token, user } = await loginApi(payload);
-      await persistSession(token, user);
+      const { token, user, refreshToken } = await loginApi(payload);
+      await persistSession(token, user, refreshToken);
       set({
         status: 'authenticated',
         token,
@@ -140,12 +144,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       useAuditStore.getState().log('login', user.id);
     } catch (err) {
       const nextAttempts = failedAttempts + 1;
-      const shouldLock = nextAttempts >= MAX_ATTEMPTS;
+      // O servidor é a fonte da verdade do bloqueio (429 + Retry-After); o contador local é só UX.
+      const serverLockMs =
+        err instanceof ApiRequestError && err.status === 429 ? (err.retryAfterSec ?? 60) * 1000 : 0;
+      const shouldLock = nextAttempts >= MAX_ATTEMPTS || serverLockMs > 0;
       set({
         status: 'unauthenticated',
         error: toSafeMessage(err),
         failedAttempts: shouldLock ? 0 : nextAttempts,
-        lockedUntil: shouldLock ? Date.now() + LOCKOUT_DURATION_MS : null,
+        lockedUntil: shouldLock ? Date.now() + Math.max(serverLockMs, LOCKOUT_DURATION_MS) : null,
       });
       useAuditStore.getState().log('login_failed', undefined, { attempt: nextAttempts });
       if (shouldLock) {
@@ -161,8 +168,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signup: async (payload) => {
     set({ status: 'authenticating', error: null });
     try {
-      const { token, user } = await signupApi(payload);
-      await persistSession(token, user);
+      const { token, user, refreshToken } = await signupApi(payload);
+      await persistSession(token, user, refreshToken);
       await useUserStore.getState().clearProfile();
       set({ status: 'authenticated', token, user, error: null });
     } catch (err) {
@@ -173,6 +180,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     const user = get().user;
+    await revokeSession(await secureStorage.getItem(REFRESH_TOKEN_KEY));
     await clearSession();
     await Promise.all([
       useUserStore.getState().clearProfile(),
