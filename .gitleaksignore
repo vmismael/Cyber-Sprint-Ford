@@ -1,0 +1,12 @@
+# Achados triados. Cada linha é o fingerprint de um falso positivo ou de um
+# segredo fictício já removido do código. Revisar a lista a cada sprint.
+
+# Exemplo didático de log inseguro no guia de prints (valor inventado, não é token real)
+e990165fa9fce011962a0cc7be62e16bc16f8417:docs/guia-prints-evidencia.md:generic-api-key:474
+docs/guia-prints-evidencia.md:generic-api-key:474
+
+# MOCK_SECRET/MOCK_API_SECRET: segredo fictício da fase só-mock, removido do app nesta sprint.
+# Nunca protegeu dado real; não há o que rotacionar. Permanece apenas no histórico.
+bd79dab4538a699fc4a70ec254027e02b3fbc526:src/services/mocks/schedulingApi.ts:ts-hardcoded-secret-constant:4
+bd79dab4538a699fc4a70ec254027e02b3fbc526:src/services/mocks/profileApi.ts:ts-hardcoded-secret-constant:4
+2ed4347d1179acfbbb754c606517f912c208b76d:src/services/mocks/authApi.ts:ts-hardcoded-secret-constant:38

@@ -1,0 +1,26 @@
+# Dependências e builds
+node_modules/
+dist/
+web-build/
+.expo/
+android/
+ios/
+*.apk
+*.aab
+
+# Segredos: nunca versionar. Só o modelo .env.example entra no git.
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Ferramentas
+.vercel
+*.log
+.DS_Store
+coverage/

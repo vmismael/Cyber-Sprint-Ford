@@ -1,0 +1,23 @@
+# Configuração do Gitleaks do Ford Intelligence.
+# Herda todas as regras padrão e acrescenta uma regra para constantes de segredo
+# no código TypeScript, padrão que as regras genéricas (baseadas em entropia) não pegam.
+title = "Ford Intelligence"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "ts-hardcoded-secret-constant"
+description = "Constante com nome de segredo e valor literal no código"
+regex = '''(?i)(?:const|let|var)\s+[A-Z0-9_]*(?:SECRET|API_KEY|PASSWORD|PRIVATE_KEY|TOKEN)[A-Z0-9_]*\s*=\s*['"][^'"]{8,}['"]'''
+path = '''\.(ts|tsx|js|jsx)$'''
+tags = ["secret", "custom"]
+
+  # Chaves de armazenamento (ex.: TOKEN_KEY = 'ford.auth.token') são nomes, não segredos.
+  [[rules.allowlists]]
+  regexTarget = "match"
+  regexes = ['''_KEY\s*=\s*['"]ford\.''']
+
+[allowlist]
+description = "Fixtures de teste com valores fictícios, nunca usados fora da suíte"
+paths = ['''backend/tests/''']
