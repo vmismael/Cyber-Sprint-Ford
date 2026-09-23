@@ -1,0 +1,28 @@
+# Atualização automática de dependências (SCA contínuo).
+# Abre PRs semanais; cada PR passa pelo pipeline devsecops antes do merge.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      expo:
+        patterns: ['expo*', '@expo/*', 'react-native*']
+    labels: [dependencies, mobile]
+
+  - package-ecosystem: npm
+    directory: /backend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: [dependencies, api]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    labels: [dependencies, ci]
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule: { interval: weekly }
+    labels: [dependencies, container]

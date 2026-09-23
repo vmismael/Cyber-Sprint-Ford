@@ -1,0 +1,55 @@
+# Rotinas agendadas de segurança contínua:
+#  - Backup diário do banco, cifrado, com retenção de 7 dias
+#  - DAST semanal (OWASP ZAP baseline) contra a API publicada
+
+name: scheduled-security
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 03:00 em Brasília — backup diário
+    - cron: '0 7 * * 1'   # segunda 04:00 em Brasília — DAST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Backup cifrado do PostgreSQL
+    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: pg_dump + cifra AES-256
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}   # conexão direta (porta 5432), não o pooler
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          file="ford-$(date -u +%Y%m%dT%H%MZ).dump"
+          docker run --rm -e DATABASE_URL postgres:17-alpine \
+            sh -c 'pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL"' > "$file"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -pass env:BACKUP_PASSPHRASE -in "$file" -out "$file.enc"
+          rm "$file"
+          sha256sum "$file.enc" | tee "$file.enc.sha256"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: db-backup
+          path: 'ford-*.dump.enc*'
+          retention-days: 7
+
+  dast:
+    name: DAST (OWASP ZAP baseline)
+    if: github.event.schedule == '0 7 * * 1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: ZAP baseline (passivo, sem ataques destrutivos)
+        uses: zaproxy/action-baseline@6c5a007541891231cd9e0ddec25d4f25c59c9874 # v0.15.0
+        with:
+          target: ${{ vars.API_PUBLIC_URL }}/v1/openapi.json
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-report

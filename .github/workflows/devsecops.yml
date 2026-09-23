@@ -1,0 +1,217 @@
+# Pipeline DevSecOps — Ford Intelligence
+#
+# Todo push e PR passa por 6 portões de segurança e qualidade. O deploy da API
+# para produção só roda na main, depois que TODOS os portões passaram, e exige
+# aprovação no environment "production" (Settings > Environments > Required reviewers).
+#
+# Supply chain do próprio pipeline:
+#  - Actions fixadas por SHA de commit (a tag pode ser movida; o SHA não). Dependabot atualiza.
+#  - Binários baixados com versão fixa e checksum SHA-256 conferido antes de executar.
+#  - GITHUB_TOKEN com permissão mínima (somente leitura).
+#  - Sem pull_request_target: PR de fork roda sem acesso a secrets.
+
+name: devsecops
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devsecops-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  GITLEAKS_VERSION: '8.30.1'
+  GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
+  TRIVY_VERSION: '0.74.0'
+  TRIVY_SHA256: '2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a'
+  SEMGREP_VERSION: '1.178.0'
+
+jobs:
+  # 1. Secret scanning — bloqueia segredo em qualquer commit do histórico
+  secrets:
+    name: Secret scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # histórico completo: segredo apagado depois continua vazado
+      - name: Instalar Gitleaks (checksum verificado)
+        run: |
+          curl -sSfL -o gitleaks.tgz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum --check --strict
+          tar -xzf gitleaks.tgz gitleaks
+      - name: Varrer histórico e arquivos
+        run: |
+          ./gitleaks git . --config .gitleaks.toml --redact --no-banner \
+            --report-format sarif --report-path gitleaks.sarif --exit-code 1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: gitleaks-report, path: gitleaks.sarif, retention-days: 30 }
+
+  # 2. SAST — regras da comunidade + regras próprias do projeto (.semgrep/)
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Instalar Semgrep
+        run: python3 -m pip install --quiet "semgrep==${SEMGREP_VERSION}"
+      - name: Analisar código (falha em severidade ERROR)
+        run: |
+          semgrep scan --metrics=off --error --severity ERROR \
+            --config p/default --config p/typescript --config p/react \
+            --config p/nodejsscan --config p/jwt --config p/secrets \
+            --config .semgrep/ford-rules.yml \
+            --exclude node_modules --exclude backend/node_modules \
+            --sarif-output semgrep.sarif .
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: semgrep-report, path: semgrep.sarif, retention-days: 30 }
+
+  # 3. SCA — vulnerabilidades conhecidas nas dependências
+  sca:
+    name: SCA (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: API — bloqueia High e Critical
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high
+      - name: App — bloqueia Critical (High de ferramentas de build triadas no documento)
+        run: npm audit --omit=dev --audit-level=critical
+      - name: Relatório completo (não bloqueante)
+        if: always()
+        run: |
+          npm audit --json > audit-app.json || true
+          (cd backend && npm audit --json > ../audit-api.json) || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: sca-report, path: 'audit-*.json', retention-days: 30 }
+
+  # 4. Testes da API contra PostgreSQL real (inclui cenários 401/403/404/422/429)
+  api:
+    name: API — tipos, testes e migração
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: ford
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run: { working-directory: backend }
+    env:
+      DATABASE_URL: postgres://ci:ci-only-password@localhost:5432/ford
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+      - name: Migração aplicada duas vezes (idempotência)
+        run: npm run db:migrate && npm run db:migrate
+      - name: Trilha de auditoria recusa UPDATE
+        run: |
+          if psql "$DATABASE_URL" -c "insert into audit_log (level, event) values ('info','ci.probe')" \
+             -c "update audit_log set event = 'adulterado'" 2>&1 | grep -q "imutável"; then
+            echo "OK: audit_log é imutável"
+          else
+            echo "FALHA: audit_log aceitou UPDATE" && exit 1
+          fi
+      - run: npm run build
+
+  # 5. Qualidade do app mobile
+  app:
+    name: App — tipos e lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+
+  # 6. IaC e container — Dockerfile e imagem final
+  container:
+    name: Container e IaC (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Instalar Trivy (checksum verificado)
+        run: |
+          curl -sSfL -o trivy.tgz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tgz" | sha256sum --check --strict
+          tar -xzf trivy.tgz trivy
+      - name: Misconfiguração de IaC (Dockerfile)
+        run: ./trivy config --exit-code 1 --severity MEDIUM,HIGH,CRITICAL backend/
+      - name: Build da imagem
+        run: docker build -t ford-api:${{ github.sha }} backend/
+      - name: Vulnerabilidades da imagem (bloqueia High/Critical com correção disponível)
+        run: |
+          ./trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL \
+            --format table ford-api:${{ github.sha }}
+      - name: SBOM (CycloneDX)
+        if: always()
+        run: ./trivy image --format cyclonedx --output sbom.cdx.json ford-api:${{ github.sha }} || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: sbom, path: sbom.cdx.json, retention-days: 90 }
+
+  # 7. Deploy — só main, só com todos os portões verdes, só com aprovação
+  deploy:
+    name: Deploy API (Vercel)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [secrets, sast, sca, api, app, container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      # Rodado na raiz do repositório: o projeto na Vercel tem Root Directory = backend.
+      - name: Build e deploy
+        id: deploy
+        run: |
+          npx --yes vercel@59.26.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@59.26.0 build --prod --token="$VERCEL_TOKEN"
+          url=$(npx --yes vercel@59.26.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Smoke test pós-deploy
+        run: |
+          curl -sSf "${{ steps.deploy.outputs.url }}/v1/health"
+          # Cabeçalhos de segurança precisam estar presentes em produção
+          curl -sI "${{ steps.deploy.outputs.url }}/v1/health" | grep -qi "strict-transport-security"
