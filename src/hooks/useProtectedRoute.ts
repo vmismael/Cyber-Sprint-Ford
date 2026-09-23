@@ -18,7 +18,7 @@ export function useProtectedRoute() {
 
     const isAuthenticated = status === 'authenticated';
     const inAuthGroup    = segments[0] === '(auth)';
-    const inOnboarding   = inAuthGroup && segments[1] === 'onboarding';
+    const inOnboarding   = inAuthGroup && (segments as string[])[1] === 'onboarding';
     const inAnalystGroup = (segments[0] as string) === '(analyst)';
 
     if (!isAuthenticated) {
