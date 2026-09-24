@@ -1,0 +1,28 @@
+digraph A {
+  rankdir=TB; bgcolor="white"; pad=0.3; nodesep=0.4; ranksep=0.6; compound=true;
+  node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=11, color="#1F3A5F", fillcolor="#EAF1FB", penwidth=1.2];
+  edge [color="#1F3A5F", penwidth=1.2, fontname="DejaVu Sans", fontsize=9];
+
+  subgraph cluster_dev { label="Dispositivo"; fontname="DejaVu Sans"; style="rounded"; color="#8899AA";
+    app [label="App Expo (APK)\nSecureStore · RBAC de UX\nredação de logs"];
+    obd [label="Simulador OBD2\n(telemetria)", fillcolor="#F2ECFA", color="#5B3A8C"];
+  }
+  subgraph cluster_vercel { label="Vercel (HTTPS + HSTS)"; fontname="DejaVu Sans"; style="rounded"; color="#8899AA";
+    api [label="API Hono /v1\nJWT · RBAC · Zod estrito\nrate limit · CORS · AES-GCM"];
+  }
+  subgraph cluster_db { label="Supabase"; fontname="DejaVu Sans"; style="rounded"; color="#8899AA";
+    db [label="PostgreSQL (TLS)\nRLS · audit_log imutável\nretenção automática"];
+  }
+  broker [label="Broker MQTT\nTLS 1.2+ com mTLS\nACL por tópico\n(desenho)", fillcolor="#F2ECFA", color="#5B3A8C", style="rounded,filled,dashed"];
+  ml [label="Modelo de ML\nscore de risco\n(integração planejada)", fillcolor="#F2ECFA", color="#5B3A8C", style="rounded,filled,dashed"];
+  graf [label="Grafana\npainéis e alertas", fillcolor="#E3F4E8", color="#1E6B3A"];
+  gh [label="GitHub Actions\npipeline DevSecOps", fillcolor="#FFF4D6", color="#9A6B00"];
+
+  app -> api [label="HTTPS + Bearer JWT"];
+  obd -> broker [label="MQTT/TLS\ncert. por veículo", style=dashed];
+  broker -> api [label="ingestão validada", style=dashed];
+  api -> db [label="SQL parametrizado"];
+  api -> ml [label="inferência", style=dashed];
+  db -> graf [label="leitura (somente SELECT)"];
+  gh -> api [label="deploy com gate"];
+}
