@@ -42,3 +42,6 @@ CLAUDE.md
 
 # Modelos 3D brutos (GLB + texturas antes da otimização). Só assets/models/ entra no git.
 _raw_models/
+
+# Enunciado do Challenge (material da FIAP, não é nosso para redistribuir)
+Ford_V2.pdf
