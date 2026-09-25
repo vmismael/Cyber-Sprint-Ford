@@ -187,6 +187,21 @@ describe('Hardening da API', () => {
     expect(line.ipHash).toMatch(/^hmac:/);
   });
 
+  it('Swagger em /docs recebe CSP própria que libera só o jsDelivr; a API segue fechada', async () => {
+    const { call } = setup();
+    const docs = await call('/docs');
+    expect(docs.status).toBe(200);
+    const csp = docs.headers.get('content-security-policy') ?? '';
+    const html = await docs.text();
+    // todo recurso externo da página precisa estar liberado na CSP, senão a tela fica em branco
+    for (const [, url] of html.matchAll(/(?:src|href)="(https:\/\/[^"/]+)/g)) expect(csp).toContain(url);
+    expect(csp).toMatch(/script-src [^;]*https:\/\/cdn\.jsdelivr\.net/);
+    expect(csp).toMatch(/style-src [^;]*https:\/\/cdn\.jsdelivr\.net/);
+    expect(csp).toContain("frame-ancestors 'none'");
+    const api = await call('/v1/health');
+    expect(api.headers.get('content-security-policy')).toBe("default-src 'none'; frame-ancestors 'none'");
+  });
+
   it('OpenAPI publicado com esquema de segurança Bearer', async () => {
     const { call } = setup();
     const spec = await (await call('/v1/openapi.json')).json();
