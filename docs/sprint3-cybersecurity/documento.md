@@ -64,7 +64,7 @@ O deploy automático da Vercel pelo Git foi desligado de propósito (`backend/ve
 - **Gitleaks** varre o histórico inteiro (`fetch-depth: 0`), porque um segredo apagado num commit posterior continua exposto nos anteriores. As regras padrão do Gitleaks não detectaram o segredo fixo que existia no app (`MOCK_SECRET`), já que ele tinha pouca entropia. Por isso criamos a regra `ts-hardcoded-secret-constant` no `.gitleaks.toml`, e ela encontrou o problema (seção 2.1).
 - **Semgrep** combina pacotes da comunidade (`p/default`, `p/typescript`, `p/react`, `p/nodejsscan`, `p/jwt`, `p/secrets`) com regras escritas para os riscos específicos do projeto em `.semgrep/ford-rules.yml`.
 - **npm audit** usa limites diferentes para a API e para o app. A API não tolera nada High. No app, as vulnerabilidades High restantes estão em ferramentas de build do Expo, que não vão para o APK (triagem na seção 4.1). O Dependabot abre PRs semanais que passam pelo mesmo pipeline.
-- **Testes com banco real:** o job sobe um PostgreSQL 16 como serviço e roda os 40 testes, a migração duas vezes (para provar que é idempotente) e uma tentativa de `UPDATE` na trilha de auditoria, que precisa falhar.
+- **Testes com banco real:** o job sobe um PostgreSQL 16 como serviço e roda os 41 testes, a migração duas vezes (para provar que é idempotente) e uma tentativa de `UPDATE` na trilha de auditoria, que precisa falhar.
 - **Trivy** verifica o Dockerfile antes do build e a imagem depois. Também gera um SBOM (CycloneDX), que fica 90 dias como artefato para rastrear componentes se surgir um CVE novo.
 
 ## 1.3 Segurança do próprio pipeline
@@ -251,7 +251,7 @@ O bloqueio de conta fica no banco porque precisa valer entre as instâncias da V
 
 ### Cabeçalhos, CORS e erros
 
-A API envia HSTS de 2 anos, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` e uma CSP `default-src 'none'`, já que só devolve JSON. O CORS responde apenas às origens da allowlist; o app nativo não envia `Origin`. Todo erro segue o formato `application/problem+json` (RFC 9457) com um `requestId` que liga a resposta ao log. Erros inesperados devolvem mensagem genérica, e o detalhe fica só no log do servidor.
+A API envia HSTS de 2 anos, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` e uma CSP `default-src 'none'`, já que só devolve JSON. A página `/docs` (Swagger UI) é a única exceção: recebe uma CSP própria que libera apenas o CSS e o JS do jsDelivr, escolhida no mesmo middleware para que a CSP da API não a sobrescreva. O CORS responde apenas às origens da allowlist; o app nativo não envia `Origin`. Todo erro segue o formato `application/problem+json` (RFC 9457) com um `requestId` que liga a resposta ao log. Erros inesperados devolvem mensagem genérica, e o detalhe fica só no log do servidor.
 
 ### Criptografia de dados
 
@@ -280,7 +280,7 @@ O tamanho fixo da tag veio de um achado do Semgrep na primeira execução do pip
 
 ### Testes automatizados de segurança
 
-São 40 testes em `backend/tests`, executados pelo pipeline a cada PR. Para provar que os testes realmente testam, removemos de propósito a checagem de posse do agendamento: o teste de IDOR falhou, e voltou a passar quando a proteção foi restaurada.
+São 41 testes em `backend/tests`, executados pelo pipeline a cada PR. Para provar que os testes realmente testam, removemos de propósito a checagem de posse do agendamento: o teste de IDOR falhou, e voltou a passar quando a proteção foi restaurada.
 
 | Cenário | Esperado |
 |---|---|
@@ -292,9 +292,10 @@ São 40 testes em `backend/tests`, executados pelo pipeline a cada PR. Para prov
 | Refresh token reutilizado | 401 e revogação da família |
 | Endereço gravado | Cifrado no armazenamento, decifrado só para o dono |
 | Tag GCM truncada (4, 8 e 12 bytes), cifra adulterada ou chave errada | Decifra recusada |
+| Página `/docs` | CSP própria libera só o jsDelivr; o resto da API mantém `default-src 'none'` |
 | Logs | Sem senha, token ou IP em claro |
 
-> [PRINT] Terminal com `npm test` mostrando os 40 testes aprovados.
+> [PRINT] Terminal com `npm test` mostrando os 41 testes aprovados.
 > [PRINT] Swagger em /docs com o cadeado Bearer e a lista de rotas.
 > [PRINT] Requisição com token de cliente em GET /v1/leads retornando 403 (Postman, Insomnia ou curl).
 > [PRINT] Resposta 429 com cabeçalho Retry-After após as 5 tentativas erradas.
@@ -603,7 +604,7 @@ Meta: Nível 1 completo e Nível 2 nos capítulos de autenticação, sessão e c
 | Revisão de dependências | A cada PR + triagem semanal | Dependabot, npm audit | Dev de plantão | PRs do Dependabot |
 | SAST e secret scanning | A cada push e PR | Semgrep, Gitleaks | Pipeline (bloqueante) | Artefatos SARIF |
 | Container e IaC | A cada build | Trivy + SBOM | Pipeline (bloqueante) | Relatório e SBOM |
-| Testes de segurança | A cada PR | 40 testes (401, 403, 404, 422, 429, cifra) | Autor do PR | Job api |
+| Testes de segurança | A cada PR | 41 testes (401, 403, 404, 422, 429, cifra, CSP) | Autor do PR | Job api |
 | DAST | Semanal | OWASP ZAP baseline | Líder técnico | Artefato zap-report |
 | Auditoria de permissões | Mensal | `GET /v1/admin/users` + eventos `user.role_changed` | Administrador | Revisão registrada |
 | Rotação de segredos | Trimestral e após incidente | Variáveis da Vercel | Líder técnico | Registro de rotação |
