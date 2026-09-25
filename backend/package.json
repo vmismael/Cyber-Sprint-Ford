@@ -1,0 +1,36 @@
+{
+  "name": "ford-intelligence-api",
+  "version": "1.0.0",
+  "description": "API REST do Ford Intelligence — autenticação JWT, RBAC e trilha de auditoria",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=dist/server.js"
+  },
+  "dependencies": {
+    "@hono/swagger-ui": "^0.6.1",
+    "@hono/zod-openapi": "^1.6.3",
+    "bcryptjs": "^3.0.3",
+    "hono": "^4.13.8",
+    "jose": "^6.2.12",
+    "postgres": "^3.4.9",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@hono/node-server": "^2.1.1",
+    "@types/node": "^26.6.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,4 +1,4 @@
-import { signPayload } from '@/utils/hmac';
+import * as Crypto from 'expo-crypto';
 
 export type UserRole = 'client' | 'analyst' | 'admin';
 
@@ -35,7 +35,6 @@ const delay = (min = 400, max = 700) =>
     setTimeout(resolve, Math.floor(Math.random() * (max - min)) + min),
   );
 
-const MOCK_SECRET = 'ford-intelligence-mock-secret-v1';
 const TOKEN_EXPIRY_SECS = 3600;
 
 function b64url(str: string): string {
@@ -47,7 +46,9 @@ async function makeToken(userId: string, role: UserRole): Promise<string> {
   const exp = iat + TOKEN_EXPIRY_SECS;
   const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const payload = b64url(JSON.stringify({ sub: userId, role, iat, exp }));
-  const sig = b64url(await signPayload(`${header}.${payload}`, MOCK_SECRET));
+  // Modo mock (sem backend): assinatura aleatória, sem segredo no bundle.
+  // Tokens reais são emitidos e validados apenas pela API (backend/).
+  const sig = b64url(Crypto.randomUUID());
   return `${header}.${payload}.${sig}`;
 }
 

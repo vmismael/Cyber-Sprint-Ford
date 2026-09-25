@@ -1,0 +1,31 @@
+digraph G {
+  rankdir=LR; bgcolor="white"; pad=0.3; nodesep=0.35; ranksep=0.45;
+  node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=11, color="#1F3A5F", fillcolor="#EAF1FB", penwidth=1.2];
+  edge [color="#1F3A5F", penwidth=1.2, fontname="DejaVu Sans", fontsize=9];
+
+  dev [label="Desenvolvedor\ncommit / PR", fillcolor="#FFFFFF"];
+
+  subgraph cluster_ci {
+    label="GitHub Actions — portões em paralelo (falha = bloqueia)"; fontname="DejaVu Sans"; fontsize=12; style="rounded,dashed"; color="#1F3A5F";
+    s1 [label="1. Secret scanning\nGitleaks (histórico)"];
+    s2 [label="2. SAST\nSemgrep + regras Ford"];
+    s3 [label="3. SCA\nnpm audit + Dependabot"];
+    s4 [label="4. Testes da API\n36 testes + Postgres"];
+    s5 [label="5. App\ntypecheck + lint"];
+    s6 [label="6. IaC e container\nTrivy config + imagem + SBOM"];
+  }
+
+  gate [label="Todos\nverdes?", shape=diamond, fillcolor="#FFF4D6", color="#9A6B00"];
+  appr [label="Aprovação manual\nenvironment production", fillcolor="#FFF4D6", color="#9A6B00"];
+  dep  [label="Deploy Vercel\n+ smoke test (HSTS)", fillcolor="#E3F4E8", color="#1E6B3A"];
+  ops  [label="Operação\nlogs JSON · audit_log · Grafana", fillcolor="#E3F4E8", color="#1E6B3A"];
+  sch  [label="Agendado\nbackup diário cifrado\nDAST semanal (ZAP)", fillcolor="#F2ECFA", color="#5B3A8C"];
+  blk  [label="Bloqueado\nrelatório SARIF / JSON", fillcolor="#FBE9E9", color="#9B1C1C"];
+
+  dev -> {s1 s2 s3 s4 s5 s6};
+  {s1 s2 s3 s4 s5 s6} -> gate;
+  gate -> appr [label="sim (main)"];
+  gate -> blk [label="não"];
+  appr -> dep -> ops;
+  sch -> ops [style=dashed];
+}

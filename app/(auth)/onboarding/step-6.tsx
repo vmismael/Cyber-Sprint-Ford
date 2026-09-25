@@ -6,8 +6,7 @@ import { StepIndicator } from '@/features/onboarding/StepIndicator';
 import { PopIn } from '@/features/onboarding/AnimatedMount';
 import { vehicleCatalog, usageCatalog, planCatalog } from '@/features/onboarding/catalog';
 import { useUserStore, type UserProfile } from '@/stores/useUserStore';
-import { submitProfile, MOCK_API_SECRET, type SubmitProfileResponse } from '@/services/mocks/profileApi';
-import { signPayload } from '@/utils/hmac';
+import { submitProfile, type SubmitProfileResponse } from '@/services/mocks/profileApi';
 import { useTheme } from '@/theme/ThemeProvider';
 
 export default function OnboardingStep6() {
@@ -34,8 +33,7 @@ export default function OnboardingStep6() {
         monthlyKm: draft.monthlyKm!,
         plan: draft.plan!,
       };
-      const sig = await signPayload(JSON.stringify(profile), MOCK_API_SECRET);
-      const response = await submitProfile({ ...profile, _sig: sig });
+      const response = await submitProfile(profile);
       setResult(response);
       await commitProfile({ ...profile, riskScore: response.riskScore });
     } catch (err) {

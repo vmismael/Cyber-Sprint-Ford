@@ -1,0 +1,68 @@
+# Regras SAST específicas do Ford Intelligence (complementam p/default, p/typescript,
+# p/react, p/nodejsscan, p/jwt e p/secrets rodados no CI).
+rules:
+  - id: ford-jwt-decode-sem-verificacao
+    languages: [typescript]
+    severity: ERROR
+    message: >
+      decodeJwt() não valida assinatura. Na API, use jwtVerify() com algoritmo fixo,
+      issuer e audience (src/lib/jwt.ts).
+    paths: { include: ['backend/src/'] }
+    pattern-either:
+      - pattern: decodeJwt(...)
+      - pattern: $JOSE.decodeJwt(...)
+
+  - id: ford-sql-unsafe
+    languages: [typescript]
+    severity: ERROR
+    message: >
+      sql.unsafe() executa SQL cru. Use tagged template (sql`...${valor}`) para que os
+      valores sejam parâmetros. Exceção documentada: scripts/migrate.ts.
+    paths: { include: ['backend/'], exclude: ['backend/scripts/migrate.ts'] }
+    pattern: $SQL.unsafe(...)
+
+  - id: ford-console-no-backend
+    languages: [typescript]
+    severity: WARNING
+    message: >
+      console.* ignora a redação de dados sensíveis. Use o logger estruturado (src/lib/logger.ts).
+    paths: { include: ['backend/src/'] }
+    pattern-either:
+      - pattern: console.log(...)
+      - pattern: console.info(...)
+      - pattern: console.error(...)
+
+  - id: ford-random-inseguro
+    languages: [typescript]
+    severity: ERROR
+    message: Math.random() não é criptograficamente seguro. Use crypto.randomBytes/randomUUID.
+    paths: { include: ['backend/src/'] }
+    pattern: Math.random()
+
+  - id: ford-asyncstorage-dado-sensivel
+    languages: [typescript]
+    severity: ERROR
+    message: >
+      AsyncStorage grava em texto claro no aparelho (OWASP M9). Token, perfil e carteira
+      devem usar secureStorage (expo-secure-store).
+    paths: { include: ['src/', 'app/'] }
+    patterns:
+      - pattern: AsyncStorage.setItem($KEY, ...)
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i).*(token|auth|user|profile|wallet|balance|coupon|booking).*
+
+  - id: ford-http-sem-tls
+    languages: [typescript]
+    severity: WARNING
+    message: URL http:// em código do app. Tráfego deve usar https:// (OWASP M5).
+    paths: { include: ['src/', 'app/'] }
+    patterns:
+      - pattern-regex: '[''"`]http://(?!localhost|127\.0\.0\.1|10\.0\.2\.2)[^''"`]+'
+
+  - id: ford-html-sem-sanitizacao
+    languages: [typescript]
+    severity: ERROR
+    message: dangerouslySetInnerHTML renderiza HTML cru (XSS na versão web).
+    paths: { include: ['src/', 'app/'] }
+    pattern: <$EL dangerouslySetInnerHTML={...} />

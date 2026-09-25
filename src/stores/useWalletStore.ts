@@ -14,18 +14,23 @@ const transactionSchema = z.object({
   amount: z.number(),
   description: z.string(),
   date: z.string(),
-  category: z.string(),
+  category: z.enum(['fuel', 'maintenance', 'tires', 'other', 'redemption']),
   dealerName: z.string().optional(),
 });
 
+// Espelha exatamente o tipo Coupon: dados lidos do armazenamento também são entrada não confiável.
 const couponSchema = z.object({
   id: z.string(),
   title: z.string(),
-  discount: z.number(),
+  description: z.string(),
+  amount: z.number(),
+  category: z.enum(['fuel', 'maintenance', 'tires']),
+  merchant: z.string(),
   expiresAt: z.string(),
+  distanceKm: z.number(),
+  isNearby: z.boolean(),
+  plan: z.enum(['agro', 'urban', 'premium', 'all']),
   redeemed: z.boolean(),
-  plan: z.string(),
-  stationId: z.string().optional(),
 });
 
 const transactionsSchema = z.array(transactionSchema);

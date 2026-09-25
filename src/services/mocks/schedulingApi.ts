@@ -1,8 +1,6 @@
-import { verifyPayload } from '@/utils/hmac';
 import { checkRateLimit } from '@/utils/rateLimit';
 import type { Booking, SchedulingDraft } from '@/types/scheduling';
 
-export const MOCK_API_SECRET = 'ford-intelligence-mock-secret-v1';
 
 const delay = (min: number, max: number) =>
   new Promise<void>((resolve) =>
@@ -58,14 +56,9 @@ export type CreateBookingPayload = Required<
   notes?: string;
 };
 
-export async function createBooking(
-  payload: CreateBookingPayload & { _sig: string },
-): Promise<Booking> {
+// Sem segredo embarcado (OWASP M1): integridade e autorização ficam na API real.
+export async function createBooking(draft: CreateBookingPayload): Promise<Booking> {
   checkRateLimit('createBooking', 3, 60_000);
-
-  const { _sig, ...draft } = payload;
-  const valid = await verifyPayload(JSON.stringify(draft), _sig, MOCK_API_SECRET);
-  if (!valid) throw new Error('Assinatura inválida.');
 
   await delay(500, 800);
   return {
