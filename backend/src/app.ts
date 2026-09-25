@@ -64,17 +64,33 @@ export function createApp(deps: Deps) {
     });
   });
 
-  app.use(
-    '*',
-    secureHeaders({
-      strictTransportSecurity: 'max-age=63072000; includeSubDomains; preload',
-      xFrameOptions: 'DENY',
-      referrerPolicy: 'no-referrer',
-      crossOriginResourcePolicy: 'same-origin',
-      // API só devolve JSON: CSP fechada. A página /docs recebe CSP própria abaixo.
-      contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
-    }),
-  );
+  // Dois perfis de cabeçalho. A API só devolve JSON, então a CSP é fechada (nada carrega).
+  // A página /docs (Swagger UI) precisa carregar CSS e JS do jsDelivr, então recebe uma CSP
+  // própria, liberando só o necessário. A escolha é feita aqui, num único middleware, porque
+  // o secureHeaders grava os cabeçalhos depois do handler e sobrescreveria qualquer ajuste
+  // feito por um middleware mais interno.
+  const baseHeaders = {
+    strictTransportSecurity: 'max-age=63072000; includeSubDomains; preload',
+    xFrameOptions: 'DENY',
+    referrerPolicy: 'no-referrer',
+    crossOriginResourcePolicy: 'same-origin',
+  } as const;
+  const apiHeaders = secureHeaders({
+    ...baseHeaders,
+    contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+  });
+  const docsHeaders = secureHeaders({
+    ...baseHeaders,
+    contentSecurityPolicy: {
+      defaultSrc: ["'none'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      imgSrc: ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  });
+  app.use('*', (c, next) => (c.req.path === '/docs' ? docsHeaders(c, next) : apiHeaders(c, next)));
 
   // App nativo não envia Origin (CORS não se aplica). Para a versão web, só origens da allowlist.
   app.use(
@@ -131,13 +147,6 @@ export function createApp(deps: Deps) {
         description:
           'API REST do Ford Intelligence. Autenticação por JWT (Bearer), RBAC com três perfis (client, analyst, admin) e erros no formato application/problem+json.',
       },
-    });
-    app.use('/docs', async (c, next) => {
-      await next();
-      c.header(
-        'Content-Security-Policy',
-        "default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'",
-      );
     });
     app.get('/docs', swaggerUI({ url: '/v1/openapi.json' }));
   }
