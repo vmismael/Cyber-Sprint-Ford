@@ -62,7 +62,9 @@ export async function audit(
     meta: opts.meta ?? {},
   };
 
-  logger[level](event, { ...record, timestamp: undefined });
+  // O logger grava o próprio timestamp em ISO; o Date do registro vai só para o banco.
+  const { timestamp: _dbTimestamp, ...logFields } = record;
+  logger[level](event, logFields);
   try {
     await repos.audit.insert(record);
   } catch {
