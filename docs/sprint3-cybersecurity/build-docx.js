@@ -10,7 +10,9 @@
 // Inline: **negrito**, *itálico*, `código`.
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell,
   WidthType, ShadingType, BorderStyle, ImageRun, PageBreak, Header, Footer, PageNumber,
@@ -18,7 +20,9 @@ const {
 } = require('docx');
 
 const DIR = __dirname;
-const SRC = fs.readFileSync(path.join(DIR, 'documento.md'), 'utf8').split('\n');
+// \r?\n: no Windows (core.autocrlf) o .md chega com CRLF, e o \r no fim da linha
+// impedia títulos, tabelas e blocos de código de serem reconhecidos.
+const SRC = fs.readFileSync(path.join(DIR, 'documento.md'), 'utf8').split(/\r?\n/);
 
 const BLUE = '1F3A5F';
 const CONTENT_W = 9638; // A4 com margens de 2 cm, em DXA
@@ -183,6 +187,7 @@ function image(file, caption) {
 
 // ---------- parser do markdown ----------
 const body = [];
+const tocHeadings = []; // títulos de nível 1 e 2, na ordem em que aparecem
 let numInstance = 0;
 for (let i = 0; i < SRC.length; i++) {
   const line = SRC[i];
@@ -193,6 +198,7 @@ for (let i = 0; i < SRC.length; i++) {
   const h = /^(#{1,3}) (.+)$/.exec(line);
   if (h) {
     const level = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3][h[1].length - 1];
+    if (h[1].length <= 2) tocHeadings.push({ title: h[2], level: h[1].length });
     body.push(new Paragraph({ heading: level, children: [new TextRun({ text: h[2] })] }));
     continue;
   }
@@ -246,7 +252,9 @@ for (let i = 0; i < SRC.length; i++) {
 }
 
 // ---------- capa e sumário ----------
-const cover = [
+// O sumário sai já preenchido (cachedEntries). Sem isso, o campo TOC fica vazio até alguém
+// abrir no Word e mandar atualizar, e visualizadores nunca mostram nada.
+const buildCover = (tocEntries) => [
   new Paragraph({ spacing: { before: 2400 }, children: [new TextRun({ text: 'CHALLENGE FORD 2026 · FIAP', size: 22, bold: true, color: '6B7A90', characterSpacing: 40 })] }),
   new Paragraph({ spacing: { before: 200, after: 120 }, children: [new TextRun({ text: 'Ford Intelligence', size: 64, bold: true, color: BLUE })] }),
   new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: BLUE, space: 8 } }, spacing: { after: 360 }, children: [new TextRun({ text: 'Sprint 3 — Cybersecurity: modelo DevSecOps', size: 34, color: '2E4A6F' })] }),
@@ -256,20 +264,22 @@ const cover = [
   new Paragraph({ spacing: { before: 600 }, children: [new TextRun({ text: 'Turma: __________      Entrega: 27/09/2026', size: 21, color: '4A5A70' })] }),
   new Paragraph({ children: [new PageBreak()] }),
   new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: 'Sumário', size: 32, bold: true, color: BLUE })] }),
-  new TableOfContents('Sumário', { hyperlink: true, headingStyleRange: '1-2' }),
+  new TableOfContents('Sumário', { hyperlink: true, headingStyleRange: '1-2', cachedEntries: tocEntries, beginDirty: false }),
   new Paragraph({ children: [new PageBreak()] }),
 ];
 
-const doc = new Document({
+const buildDoc = (tocEntries) => new Document({
   creator: 'Equipe Ford Intelligence',
   title: 'Ford Intelligence — Sprint 3 Cybersecurity',
   description: 'Entrega da Sprint 3 de Cybersecurity (DevSecOps)',
-  features: { updateFields: true },
+  features: { updateFields: false },
   styles: {
     default: { document: { run: { font: FONT, size: 21, color: '1E2A38' } } },
     paragraphStyles: [
       { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 34, bold: true, color: BLUE, font: FONT }, paragraph: { spacing: { before: 240, after: 200 }, outlineLevel: 0, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: 'B8C4D4', space: 6 } } } },
       { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 26, bold: true, color: '2E4A6F', font: FONT }, paragraph: { spacing: { before: 320, after: 140 }, outlineLevel: 1, keepNext: true } },
+      { id: 'TOC1', name: 'toc 1', basedOn: 'Normal', next: 'Normal', run: { bold: true, size: 21, color: BLUE }, paragraph: { spacing: { before: 140, after: 40 } } },
+      { id: 'TOC2', name: 'toc 2', basedOn: 'Normal', next: 'Normal', run: { size: 20 }, paragraph: { indent: { left: 360 }, spacing: { after: 30 } } },
       { id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 22, bold: true, color: '2E4A6F', font: FONT }, paragraph: { spacing: { before: 240, after: 100 }, outlineLevel: 2, keepNext: true } },
     ],
   },
@@ -290,13 +300,52 @@ const doc = new Document({
         default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], size: 17, color: '7A889C' })] })] }),
         first: new Footer({ children: [new Paragraph({ children: [] })] }),
       },
-      children: [...cover, ...body],
+      children: [...buildCover(tocEntries), ...body],
     },
   ],
 });
 
+// ---------- geração ----------
+// 1ª passada: sumário com todos os títulos e página provisória (mesmo tamanho do final).
+// 2ª passada: renderiza em PDF com o LibreOffice, acha a página de cada título e gera de novo.
+// Sem LibreOffice/pdftotext na máquina, o sumário sai com os títulos e sem números de página
+// (no Word: clique com o botão direito no sumário > Atualizar campo).
 const out = process.argv[2] || path.join(DIR, 'Sprint3-Cybersecurity-Ford-Intelligence.docx');
-Packer.toBuffer(doc).then((buf) => {
-  fs.writeFileSync(out, buf);
-  console.log('Gerado:', out);
-});
+
+function findPages(docxPath) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'toc-'));
+  try {
+    const soffice = process.platform === 'win32' ? 'soffice.exe' : 'soffice';
+    execFileSync(soffice, ['--headless', '--convert-to', 'pdf', '--outdir', tmp, docxPath], { stdio: 'ignore' });
+    const pdf = path.join(tmp, path.basename(docxPath).replace(/\.docx$/, '.pdf'));
+    const norm = (t) => t.replace(/\s+/g, ' ').trim();
+    const pages = execFileSync('pdftotext', ['-layout', pdf, '-'], { encoding: 'utf8' }).split('\f').map(norm);
+    // o próprio sumário também contém os títulos: começa a procurar depois dele
+    let tocEnd = pages.findIndex((p, i) => i > 0 && !p.includes('Sumário') && p.includes(norm(tocHeadings[0].title)));
+    if (tocEnd < 0) return null;
+    let cursor = tocEnd;
+    const found = [];
+    for (const hd of tocHeadings) {
+      const t = norm(hd.title);
+      let i = cursor;
+      while (i < pages.length && !pages[i].includes(t)) i++;
+      if (i >= pages.length) return null;
+      found.push(i + 1); // numeração do rodapé = posição física da página
+      cursor = i;
+    }
+    return found;
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+(async () => {
+  const draft = tocHeadings.map((h) => ({ ...h, page: 88 }));
+  fs.writeFileSync(out, await Packer.toBuffer(buildDoc(draft)));
+  const pages = findPages(out);
+  const entries = tocHeadings.map((h, i) => ({ ...h, page: pages ? pages[i] : undefined }));
+  fs.writeFileSync(out, await Packer.toBuffer(buildDoc(entries)));
+  console.log('Gerado:', out, pages ? '(sumário com páginas)' : '(sumário sem números de página: atualize o campo no Word)');
+})();
