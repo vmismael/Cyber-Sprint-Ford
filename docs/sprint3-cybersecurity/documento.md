@@ -64,7 +64,7 @@ O deploy automático da Vercel pelo Git foi desligado de propósito (`backend/ve
 - **Gitleaks** varre o histórico inteiro (`fetch-depth: 0`), porque um segredo apagado num commit posterior continua exposto nos anteriores. As regras padrão do Gitleaks não detectaram o segredo fixo que existia no app (`MOCK_SECRET`), já que ele tinha pouca entropia. Por isso criamos a regra `ts-hardcoded-secret-constant` no `.gitleaks.toml`, e ela encontrou o problema (seção 2.1).
 - **Semgrep** combina pacotes da comunidade (`p/default`, `p/typescript`, `p/react`, `p/nodejsscan`, `p/jwt`, `p/secrets`) com regras escritas para os riscos específicos do projeto em `.semgrep/ford-rules.yml`.
 - **npm audit** usa limites diferentes para a API e para o app. A API não tolera nada High. No app, as vulnerabilidades High restantes estão em ferramentas de build do Expo, que não vão para o APK (triagem na seção 4.1). O Dependabot abre PRs semanais que passam pelo mesmo pipeline.
-- **Testes com banco real:** o job sobe um PostgreSQL 16 como serviço e roda os 36 testes, a migração duas vezes (para provar que é idempotente) e uma tentativa de `UPDATE` na trilha de auditoria, que precisa falhar.
+- **Testes com banco real:** o job sobe um PostgreSQL 16 como serviço e roda os 40 testes, a migração duas vezes (para provar que é idempotente) e uma tentativa de `UPDATE` na trilha de auditoria, que precisa falhar.
 - **Trivy** verifica o Dockerfile antes do build e a imagem depois. Também gera um SBOM (CycloneDX), que fica 90 dias como artefato para rastrear componentes se surgir um CVE novo.
 
 ## 1.3 Segurança do próprio pipeline
@@ -112,6 +112,8 @@ Antes de subir o pipeline, rodamos cada ferramenta no repositório para confirma
 | npm audit (app) | 34 → 22 vulnerabilidades; críticas 2 → 0 | Corrigidas as que não exigiam upgrade major |
 | npm audit (API) | 0 vulnerabilidades | |
 
+**Primeira execução no GitHub (PR #1).** Cinco portões passaram de primeira. O Semgrep bloqueou o PR com um achado de severidade ERROR vindo dos pacotes da comunidade, que não tínhamos rodado localmente: `gcm-no-tag-length` em `backend/src/lib/crypto.ts`. A decifra AES-256-GCM não fixava o tamanho da tag de autenticação, e o Node aceita tags de até 4 bytes; uma tag curta pode ser forjada por força bruta. Era um defeito real, não falso positivo: um teste escrito para o caso mostrou que o código anterior aceitava a tag truncada para 4 bytes. A correção entrou no commit 713d96a (seção 2.2), e o portão passou sem nenhuma supressão.
+
 > [PRINT] Aba Actions do GitHub com o workflow devsecops concluído e os seis jobs verdes.
 > [PRINT] Um PR bloqueado pelo Gitleaks (faça um commit de teste com um segredo falso numa branch descartável).
 > [PRINT] Artefatos do workflow: gitleaks-report, semgrep-report, sca-report e sbom.
@@ -132,6 +134,7 @@ Esta seção mostra as correções reais aplicadas. Cada item traz o problema en
 | 02d4218 | API com JWT, RBAC, auditoria, cifra de campo e hardening |
 | 187a670 | App passa a autenticar na API real |
 | cb30703 | Pipeline DevSecOps, Dependabot e rotinas agendadas |
+| 713d96a | Tag GCM fixada em 16 bytes na cifra de campo (achado do Semgrep no pipeline) |
 
 ## 2.1 Correções no app mobile
 
@@ -262,15 +265,21 @@ A API envia HSTS de 2 anos, `X-Frame-Options: DENY`, `X-Content-Type-Options: no
 
 ```typescript
 // backend/src/lib/crypto.ts — GCM cifra e detecta adulteração
-const iv = randomBytes(12);
-const cipher = createCipheriv('aes-256-gcm', key, iv);
+const iv = randomBytes(IV_LENGTH); // 12 bytes
+const cipher = createCipheriv('aes-256-gcm', key, iv, { authTagLength: TAG_LENGTH }); // 16 bytes
 const data = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
 const tag = cipher.getAuthTag();
+
+// na decifra, tag com tamanho diferente de 16 bytes é recusada antes de verificar
+if (ivBuf.length !== IV_LENGTH || tagBuf.length !== TAG_LENGTH) throw new Error('Payload cifrado inválido');
+const decipher = createDecipheriv('aes-256-gcm', key, ivBuf, { authTagLength: TAG_LENGTH });
 ```
+
+O tamanho fixo da tag veio de um achado do Semgrep na primeira execução do pipeline (commit 713d96a). Sem ele, a decifra aceitava uma tag truncada para 4 bytes, e 32 bits de autenticação podem ser forjados por força bruta.
 
 ### Testes automatizados de segurança
 
-São 36 testes em `backend/tests`, executados pelo pipeline a cada PR. Para provar que os testes realmente testam, removemos de propósito a checagem de posse do agendamento: o teste de IDOR falhou, e voltou a passar quando a proteção foi restaurada.
+São 40 testes em `backend/tests`, executados pelo pipeline a cada PR. Para provar que os testes realmente testam, removemos de propósito a checagem de posse do agendamento: o teste de IDOR falhou, e voltou a passar quando a proteção foi restaurada.
 
 | Cenário | Esperado |
 |---|---|
@@ -281,9 +290,10 @@ São 36 testes em `backend/tests`, executados pelo pipeline a cada PR. Para prov
 | 5 senhas erradas (de IPs diferentes); 11 logins do mesmo IP | 429 |
 | Refresh token reutilizado | 401 e revogação da família |
 | Endereço gravado | Cifrado no armazenamento, decifrado só para o dono |
+| Tag GCM truncada (4, 8 e 12 bytes), cifra adulterada ou chave errada | Decifra recusada |
 | Logs | Sem senha, token ou IP em claro |
 
-> [PRINT] Terminal com `npm test` mostrando os 36 testes aprovados.
+> [PRINT] Terminal com `npm test` mostrando os 40 testes aprovados.
 > [PRINT] Swagger em /docs com o cadeado Bearer e a lista de rotas.
 > [PRINT] Requisição com token de cliente em GET /v1/leads retornando 403 (Postman, Insomnia ou curl).
 > [PRINT] Resposta 429 com cabeçalho Retry-After após as 5 tentativas erradas.
@@ -590,7 +600,7 @@ Meta: Nível 1 completo e Nível 2 nos capítulos de autenticação, sessão e c
 | Revisão de dependências | A cada PR + triagem semanal | Dependabot, npm audit | Dev de plantão | PRs do Dependabot |
 | SAST e secret scanning | A cada push e PR | Semgrep, Gitleaks | Pipeline (bloqueante) | Artefatos SARIF |
 | Container e IaC | A cada build | Trivy + SBOM | Pipeline (bloqueante) | Relatório e SBOM |
-| Testes de segurança | A cada PR | 36 testes (401, 403, 404, 422, 429) | Autor do PR | Job api |
+| Testes de segurança | A cada PR | 40 testes (401, 403, 404, 422, 429, cifra) | Autor do PR | Job api |
 | DAST | Semanal | OWASP ZAP baseline | Líder técnico | Artefato zap-report |
 | Auditoria de permissões | Mensal | `GET /v1/admin/users` + eventos `user.role_changed` | Administrador | Revisão registrada |
 | Rotação de segredos | Trimestral e após incidente | Variáveis da Vercel | Líder técnico | Registro de rotação |
