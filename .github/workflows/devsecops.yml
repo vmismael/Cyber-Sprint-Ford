@@ -193,7 +193,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: production
-      url: ${{ steps.deploy.outputs.url }}
+      url: ${{ vars.API_PUBLIC_URL }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -210,8 +210,13 @@ jobs:
           npx --yes vercel@59.26.0 build --prod --token="$VERCEL_TOKEN"
           url=$(npx --yes vercel@59.26.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
+      # Testa o domínio de produção, não a URL única do deploy: a Deployment Protection
+      # da Vercel exige login nas URLs únicas e responderia 401 mesmo com a API no ar.
       - name: Smoke test pós-deploy
+        env:
+          API_URL: ${{ vars.API_PUBLIC_URL }}
         run: |
-          curl -sSf "${{ steps.deploy.outputs.url }}/v1/health"
+          test -n "$API_URL" || { echo "Variable API_PUBLIC_URL não definida"; exit 1; }
+          curl -sSf --retry 5 --retry-delay 5 --retry-all-errors "$API_URL/v1/health"
           # Cabeçalhos de segurança precisam estar presentes em produção
-          curl -sI "${{ steps.deploy.outputs.url }}/v1/health" | grep -qi "strict-transport-security"
+          curl -sI "$API_URL/v1/health" | grep -qi "strict-transport-security"
