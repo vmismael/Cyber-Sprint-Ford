@@ -135,6 +135,7 @@ Esta seção mostra as correções reais aplicadas. Cada item traz o problema en
 | 187a670 | App passa a autenticar na API real |
 | cb30703 | Pipeline DevSecOps, Dependabot e rotinas agendadas |
 | 713d96a | Tag GCM fixada em 16 bytes na cifra de campo (achado do Semgrep no pipeline) |
+| 0cc5d2a | RLS na tabela de controle de migrações (achado na conferência do banco de produção) |
 
 ## 2.1 Correções no app mobile
 
@@ -318,6 +319,8 @@ end $$;
 ```
 
 Testado em PostgreSQL 16: `update audit_log set event='x'` retorna `ERROR: audit_log é imutável`. O pipeline repete esse teste a cada execução.
+
+**Conferência no banco de produção (Supabase, PostgreSQL 17.6).** Depois da migração, conferimos direto no banco: as 7 tabelas de `public` com RLS ligado e nenhuma política; senhas do seed em bcrypt; `UPDATE` e `DELETE` em `audit_log` recusados pelo trigger, testados dentro de uma transação desfeita para não deixar evento falso na trilha. A conferência encontrou uma falha: a tabela `schema_migrations`, criada pelo script de migração, estava sem RLS. No Supabase, as chaves públicas têm permissão padrão em todo o schema `public`, e alguém com a chave `anon` poderia inserir um nome de arquivo e fazer uma migração futura ser pulada. Corrigido no commit 0cc5d2a.
 
 ## 2.4 Infraestrutura como código
 
