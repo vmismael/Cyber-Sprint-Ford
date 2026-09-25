@@ -49,13 +49,15 @@ export function createLogger(opts: { service: string; env: string; sink?: LogSin
 
   const write = (level: LogLevel, event: string, fields: Record<string, unknown> = {}) => {
     if (order.indexOf(level) < min) return;
+    // Campos-base por último: nenhum campo do chamador pode sobrescrevê-los. Antes, um
+    // `timestamp: undefined` vindo do audit() apagava o horário da linha de log.
     const entry = {
+      ...(redact(fields) as Record<string, unknown>),
       timestamp: new Date().toISOString(),
       level,
       service: opts.service,
       env: opts.env,
       event,
-      ...(redact(fields) as Record<string, unknown>),
     };
     sink(JSON.stringify(entry));
   };

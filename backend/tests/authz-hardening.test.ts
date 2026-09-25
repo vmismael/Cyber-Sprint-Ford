@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createLogger } from '../src/lib/logger.js';
 import { setup } from './helpers.js';
 
 const booking = {
@@ -185,6 +186,26 @@ describe('Hardening da API', () => {
     const line = JSON.parse(logs.find((l) => l.includes('auth.login_failed'))!);
     expect(line).toMatchObject({ level: 'warn', service: 'ford-api', event: 'auth.login_failed' });
     expect(line.ipHash).toMatch(/^hmac:/);
+  });
+
+  it('toda linha de log tem timestamp ISO, inclusive as de auditoria', async () => {
+    const { call, logs } = setup();
+    await call('/v1/auth/login', { method: 'POST', json: { email: 'ninguem@exemplo.com', password: 'Errada123' } });
+    await call('/v1/leads');
+    const audit = logs.map((l) => JSON.parse(l)).filter((l) => /^(auth|authz)\./.test(l.event));
+    expect(audit.length).toBeGreaterThan(0);
+    for (const l of logs.map((x) => JSON.parse(x))) {
+      expect(l.timestamp, `sem timestamp: ${l.event}`).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    }
+  });
+
+  it('campos do chamador não sobrescrevem os campos-base do log', () => {
+    const lines: string[] = [];
+    const logger = createLogger({ service: 'ford-api', env: 'test', sink: (l) => lines.push(l) });
+    logger.info('evento.real', { timestamp: undefined, level: 'error', event: 'forjado', service: 'outro' });
+    const line = JSON.parse(lines[0]!);
+    expect(line).toMatchObject({ level: 'info', event: 'evento.real', service: 'ford-api' });
+    expect(line.timestamp).toBeTruthy();
   });
 
   it('Swagger em /docs recebe CSP própria que libera só o jsDelivr; a API segue fechada', async () => {
