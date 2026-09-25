@@ -20,7 +20,9 @@ const {
 } = require('docx');
 
 const DIR = __dirname;
-const SRC = fs.readFileSync(path.join(DIR, 'documento.md'), 'utf8').split('\n');
+// \r?\n: no Windows (core.autocrlf) o .md chega com CRLF, e o \r no fim da linha
+// impedia títulos, tabelas e blocos de código de serem reconhecidos.
+const SRC = fs.readFileSync(path.join(DIR, 'documento.md'), 'utf8').split(/\r?\n/);
 
 const BLUE = '1F3A5F';
 const CONTENT_W = 9638; // A4 com margens de 2 cm, em DXA
