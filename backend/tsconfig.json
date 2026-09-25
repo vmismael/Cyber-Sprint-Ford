@@ -8,6 +8,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    // Caminho explícito: o build da Vercel (TypeScript 7) não acha @types/node sem ele (TS2688).
+    "typeRoots": ["./node_modules/@types"],
     "types": ["node"],
     "outDir": "dist"
   },
