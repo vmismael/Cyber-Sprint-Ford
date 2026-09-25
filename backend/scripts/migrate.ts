@@ -10,6 +10,9 @@ const sql = postgres(url, { prepare: false, ssl: url.includes('localhost') ? fal
 const dir = join(import.meta.dirname, '..', 'db', 'migrations');
 
 await sql`create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())`;
+// No Supabase, anon/authenticated recebem permissão em tudo do schema public. Sem RLS,
+// a chave pública poderia inserir um nome aqui e fazer uma migração ser pulada.
+await sql`alter table schema_migrations enable row level security`;
 const applied = new Set((await sql`select name from schema_migrations`).map((r) => r.name as string));
 
 for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
