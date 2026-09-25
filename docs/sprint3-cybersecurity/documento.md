@@ -424,13 +424,21 @@ A API emite uma linha JSON por evento, com campos fixos. Isso permite filtrar, a
 
 ## 3.3 Dashboards
 
-Ferramenta: **Grafana Cloud** (plano gratuito) com o PostgreSQL do Supabase como fonte de dados. O Grafana conecta com um usuário que só tem `SELECT` na trilha de auditoria:
+Ferramenta: **Grafana Cloud** (plano gratuito) com o PostgreSQL do Supabase como fonte de dados. O Grafana conecta com um usuário que só lê a trilha de auditoria. SQL aplicado no banco de produção:
 
 ```sql
-create role grafana_reader login password '<senha forte gerada no cofre>';
+-- A senha nunca foi enviada em texto: o hash SCRAM-SHA-256 foi calculado fora do banco.
+create role grafana_reader with login password '<hash SCRAM-SHA-256>' connection limit 5;
+alter role grafana_reader set statement_timeout = '15s';
 grant usage on schema public to grafana_reader;
 grant select on audit_log to grafana_reader;
+-- audit_log tem RLS ligado sem políticas: sem esta política, o grant sozinho não devolve nenhuma linha.
+create policy grafana_read on audit_log for select to grafana_reader using (true);
 ```
+
+O limite de 5 conexões e o tempo máximo de 15 segundos por consulta impedem que um painel mal escrito pese no banco da API. A conexão passa pelo Session pooler do Supabase (porta 5432, IPv4), com usuário `grafana_reader.<ref-do-projeto>` e TLS obrigatório.
+
+**Verificação**, logado como `grafana_reader` pelo Session pooler: `select` em `audit_log` funciona; `select` em `users`, `leads` e `bookings` retorna `permission denied`; `insert` em `audit_log` também é negado; e chamar `purge_expired_data()` falha, porque a função roda com os privilégios de quem a chama.
 
 Consultas dos painéis:
 
