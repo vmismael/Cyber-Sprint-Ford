@@ -22,7 +22,10 @@ jobs:
     steps:
       - name: pg_dump + cifra AES-256
         env:
-          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}   # conexão direta (porta 5432), não o pooler
+          # Session pooler (porta 5432): aceita pg_dump e tem IPv4. A conexão direta do
+          # Supabase free é só IPv6, e os runners do GitHub não têm IPv6. Não usar o
+          # Transaction pooler (6543), que não mantém a sessão que o pg_dump precisa.
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           set -euo pipefail
