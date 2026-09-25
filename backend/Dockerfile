@@ -3,7 +3,7 @@
 # Boas práticas: multi-stage, base mínima com versão fixa, usuário não-root,
 # só dependências de produção e nenhum segredo em camadas (tudo via variável de ambiente).
 
-FROM node:22-alpine3.22 AS build
+FROM node:26-alpine3.22 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -11,7 +11,7 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev --ignore-scripts
 
-FROM node:22-alpine3.22 AS runtime
+FROM node:26-alpine3.22 AS runtime
 ENV NODE_ENV=production PORT=3333
 WORKDIR /app
 # Atualiza pacotes do SO e remove npm, npx, corepack e yarn da imagem final:
