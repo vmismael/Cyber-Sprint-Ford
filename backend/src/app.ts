@@ -5,12 +5,12 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
 import { secureHeaders } from 'hono/secure-headers';
-import type { AppContext, AppEnv, Deps } from './context';
-import { ApiError } from './lib/errors';
-import { authRoutes } from './routes/auth';
-import { backofficeRoutes } from './routes/backoffice';
-import { bookingRoutes } from './routes/bookings';
-import { audit } from './services/audit';
+import type { AppContext, AppEnv, Deps } from './context.js';
+import { ApiError } from './lib/errors.js';
+import { authRoutes } from './routes/auth.js';
+import { backofficeRoutes } from './routes/backoffice.js';
+import { bookingRoutes } from './routes/bookings.js';
+import { audit } from './services/audit.js';
 
 function problemResponse(c: AppContext, err: ApiError) {
   for (const [k, v] of Object.entries(err.headers)) c.header(k, v);

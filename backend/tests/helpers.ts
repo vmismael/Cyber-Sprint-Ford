@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
-import { createApp } from '../src/app';
-import { buildDeps } from '../src/bootstrap';
-import { loadEnv } from '../src/config/env';
-import { createMemoryRepositories } from '../src/repositories/memory';
-import type { Role } from '../src/security/rbac';
+import { createApp } from '../src/app.js';
+import { buildDeps } from '../src/bootstrap.js';
+import { loadEnv } from '../src/config/env.js';
+import { createMemoryRepositories } from '../src/repositories/memory.js';
+import type { Role } from '../src/security/rbac.js';
 
 export const TEST_ENV = loadEnv({
   NODE_ENV: 'test',

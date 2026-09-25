@@ -1,4 +1,4 @@
-import type { Role } from '../security/rbac';
+import type { Role } from '../security/rbac.js';
 
 export type User = {
   id: string;

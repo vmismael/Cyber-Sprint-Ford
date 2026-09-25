@@ -1,6 +1,6 @@
-import type { AppContext } from '../context';
-import { hmacSha256 } from '../lib/crypto';
-import type { Role } from '../security/rbac';
+import type { AppContext } from '../context.js';
+import { hmacSha256 } from '../lib/crypto.js';
+import type { Role } from '../security/rbac.js';
 
 /** Eventos auditados. Espelham o AuditEventType do app mobile, com prefixo de domínio. */
 export type AuditEventName =

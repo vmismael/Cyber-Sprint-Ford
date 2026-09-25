@@ -1,4 +1,4 @@
-import { maskEmail, maskName } from './mask';
+import { maskEmail, maskName } from './mask.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 

@@ -1,10 +1,10 @@
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
-import type { AppContext } from '../context';
-import { randomToken, sha256 } from '../lib/crypto';
-import { ApiError, Errors } from '../lib/errors';
-import type { User } from '../repositories/types';
-import { audit } from './audit';
+import type { AppContext } from '../context.js';
+import { randomToken, sha256 } from '../lib/crypto.js';
+import { ApiError, Errors } from '../lib/errors.js';
+import type { User } from '../repositories/types.js';
+import { audit } from './audit.js';
 
 export const MAX_FAILED_LOGINS = 5;
 export const LOCKOUT_MINUTES = 15;

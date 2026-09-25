@@ -1,8 +1,8 @@
 import { createMiddleware } from 'hono/factory';
-import type { AppEnv } from '../context';
-import { Errors } from '../lib/errors';
-import { can, type Permission } from '../security/rbac';
-import { audit, clientIp } from '../services/audit';
+import type { AppEnv } from '../context.js';
+import { Errors } from '../lib/errors.js';
+import { can, type Permission } from '../security/rbac.js';
+import { audit, clientIp } from '../services/audit.js';
 
 /**
  * Exige um access token válido. O perfil (role) usado nas decisões vem do banco,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setup } from './helpers';
+import { setup } from './helpers.js';
 
 const booking = {
   dealerId: 'dealer_sp_01',

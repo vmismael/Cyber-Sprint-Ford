@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    // NodeNext exige extensão nos imports relativos (./app.js). Na Vercel cada arquivo
+    // roda como ESM sem bundler, e "./app" sem extensão derruba a função (ERR_MODULE_NOT_FOUND).
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,

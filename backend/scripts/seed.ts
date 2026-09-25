@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import postgres from 'postgres';
-import { SEED_LEADS } from '../src/repositories/seedLeads';
+import { SEED_LEADS } from '../src/repositories/seedLeads.js';
 
 /**
  * Cria os usuários iniciais (admin e analista) e os leads de demonstração.

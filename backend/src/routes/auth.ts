@@ -1,8 +1,8 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import type { AppEnv } from '../context';
-import { rateLimit, requireAuth } from '../middleware/security';
-import { LoginSchema, RefreshSchema, RegisterSchema, TokenPairSchema, UserSchema, problem } from '../schemas';
-import * as auth from '../services/auth';
+import type { AppEnv } from '../context.js';
+import { rateLimit, requireAuth } from '../middleware/security.js';
+import { LoginSchema, RefreshSchema, RegisterSchema, TokenPairSchema, UserSchema, problem } from '../schemas/index.js';
+import * as auth from '../services/auth.js';
 
 export const authRoutes = new OpenAPIHono<AppEnv>();
 

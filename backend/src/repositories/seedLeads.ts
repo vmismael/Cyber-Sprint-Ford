@@ -1,4 +1,4 @@
-import type { Lead } from './types';
+import type { Lead } from './types.js';
 
 /** Dados fictícios de demonstração (mesmos clientes do mock do app). Nenhum dado real. */
 export const SEED_LEADS: Lead[] = [
