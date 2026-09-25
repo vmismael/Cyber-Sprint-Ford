@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createFieldCipher } from '../src/lib/crypto';
+import { createFieldCipher } from '../src/lib/crypto.js';
 
 const cipher = createFieldCipher(randomBytes(32).toString('base64'));
 const plain = 'Rua das Flores, 123 - São Paulo';

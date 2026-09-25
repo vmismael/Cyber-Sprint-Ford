@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server';
-import app from './index';
+import app from './index.js';
 
 // Servidor local para desenvolvimento (`npm run dev`). Na Vercel, quem sobe é o src/index.ts.
 const port = Number(process.env.PORT ?? 3333);

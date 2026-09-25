@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { SEED_LEADS } from './seedLeads';
-import type { AuditEvent, Booking, Page, Profile, RefreshToken, Repositories, User } from './types';
+import { SEED_LEADS } from './seedLeads.js';
+import type { AuditEvent, Booking, Page, Profile, RefreshToken, Repositories, User } from './types.js';
 
 /** Implementação em memória: usada nos testes automatizados e em dev sem banco. */
 export function createMemoryRepositories(): Repositories & { _raw: { bookings: Map<string, Booking>; audit: AuditEvent[] } } {

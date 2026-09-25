@@ -1,9 +1,9 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import type { AppEnv } from '../context';
-import { Errors } from '../lib/errors';
-import { maskEmail, maskName, maskPhone } from '../lib/mask';
-import { rateLimit, requireAuth, requirePermission } from '../middleware/security';
-import type { Lead } from '../repositories/types';
+import type { AppEnv } from '../context.js';
+import { Errors } from '../lib/errors.js';
+import { maskEmail, maskName, maskPhone } from '../lib/mask.js';
+import { rateLimit, requireAuth, requirePermission } from '../middleware/security.js';
+import type { Lead } from '../repositories/types.js';
 import {
   AuditEventSchema,
   AuditQuerySchema,
@@ -15,9 +15,9 @@ import {
   UserSchema,
   UuidParamSchema,
   problem,
-} from '../schemas';
-import { audit } from '../services/audit';
-import { publicUser } from '../services/auth';
+} from '../schemas/index.js';
+import { audit } from '../services/audit.js';
+import { publicUser } from '../services/auth.js';
 
 export const backofficeRoutes = new OpenAPIHono<AppEnv>();
 

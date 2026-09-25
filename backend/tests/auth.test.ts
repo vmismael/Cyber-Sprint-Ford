@@ -1,6 +1,6 @@
 import { SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
-import { PASSWORD, TEST_ENV, setup } from './helpers';
+import { PASSWORD, TEST_ENV, setup } from './helpers.js';
 
 const b64url = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
 

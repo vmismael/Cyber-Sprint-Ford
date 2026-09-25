@@ -1,11 +1,11 @@
 import type { Context } from 'hono';
-import type { Env } from './config/env';
-import type { FieldCipher } from './lib/crypto';
-import type { JwtService } from './lib/jwt';
-import type { Logger } from './lib/logger';
-import type { RateLimiter } from './lib/rateLimit';
-import type { Repositories } from './repositories/types';
-import type { Role } from './security/rbac';
+import type { Env } from './config/env.js';
+import type { FieldCipher } from './lib/crypto.js';
+import type { JwtService } from './lib/jwt.js';
+import type { Logger } from './lib/logger.js';
+import type { RateLimiter } from './lib/rateLimit.js';
+import type { Repositories } from './repositories/types.js';
+import type { Role } from './security/rbac.js';
 
 export type Deps = {
   env: Env;

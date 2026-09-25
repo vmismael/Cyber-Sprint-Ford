@@ -1,5 +1,5 @@
 import postgres from 'postgres';
-import type { AuditEvent, Booking, Lead, Profile, RefreshToken, Repositories, User } from './types';
+import type { AuditEvent, Booking, Lead, Profile, RefreshToken, Repositories, User } from './types.js';
 
 /**
  * Repositório PostgreSQL (Supabase).

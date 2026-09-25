@@ -1,9 +1,9 @@
 import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
-import type { AppContext, AppEnv } from '../context';
-import { Errors } from '../lib/errors';
-import { rateLimit, requireAuth, requirePermission } from '../middleware/security';
-import type { Booking } from '../repositories/types';
-import { can } from '../security/rbac';
+import type { AppContext, AppEnv } from '../context.js';
+import { Errors } from '../lib/errors.js';
+import { rateLimit, requireAuth, requirePermission } from '../middleware/security.js';
+import type { Booking } from '../repositories/types.js';
+import { can } from '../security/rbac.js';
 import {
   BookingInputSchema,
   BookingListSchema,
@@ -13,8 +13,8 @@ import {
   ProfileSchema,
   UuidParamSchema,
   problem,
-} from '../schemas';
-import { audit } from '../services/audit';
+} from '../schemas/index.js';
+import { audit } from '../services/audit.js';
 
 export const bookingRoutes = new OpenAPIHono<AppEnv>();
 

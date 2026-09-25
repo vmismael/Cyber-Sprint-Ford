@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi';
-import { ROLES } from '../security/rbac';
-import { DELIVERY_MODES, SERVICE_KINDS } from '../repositories/types';
+import { ROLES } from '../security/rbac.js';
+import { DELIVERY_MODES, SERVICE_KINDS } from '../repositories/types.js';
 
 /**
  * Todos os schemas de entrada são estritos: campo desconhecido = 422.

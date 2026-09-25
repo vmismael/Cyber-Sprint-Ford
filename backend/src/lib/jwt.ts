@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify, errors as joseErrors } from 'jose';
 import { randomUUID } from 'node:crypto';
-import type { Role } from '../security/rbac';
+import type { Role } from '../security/rbac.js';
 
 const ISSUER = 'ford-intelligence-api';
 const AUDIENCE = 'ford-intelligence-app';

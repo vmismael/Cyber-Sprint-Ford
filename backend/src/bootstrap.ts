@@ -1,12 +1,12 @@
-import { loadEnv, type Env } from './config/env';
-import type { Deps } from './context';
-import { createFieldCipher } from './lib/crypto';
-import { createJwtService } from './lib/jwt';
-import { createLogger, type LogSink } from './lib/logger';
-import { createMemoryRateLimiter } from './lib/rateLimit';
-import { createMemoryRepositories } from './repositories/memory';
-import { createPostgresRepositories } from './repositories/postgres';
-import type { Repositories } from './repositories/types';
+import { loadEnv, type Env } from './config/env.js';
+import type { Deps } from './context.js';
+import { createFieldCipher } from './lib/crypto.js';
+import { createJwtService } from './lib/jwt.js';
+import { createLogger, type LogSink } from './lib/logger.js';
+import { createMemoryRateLimiter } from './lib/rateLimit.js';
+import { createMemoryRepositories } from './repositories/memory.js';
+import { createPostgresRepositories } from './repositories/postgres.js';
+import type { Repositories } from './repositories/types.js';
 
 export function buildDeps(opts: { env?: Env; repos?: Repositories; sink?: LogSink } = {}): Deps {
   const env = opts.env ?? loadEnv();
