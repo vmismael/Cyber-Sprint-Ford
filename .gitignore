@@ -16,6 +16,9 @@ ios/
 *.p12
 *.jks
 *.keystore
+*.key
+*.p8
+*.mobileprovision
 google-services.json
 GoogleService-Info.plist
 
@@ -24,3 +27,18 @@ GoogleService-Info.plist
 *.log
 .DS_Store
 coverage/
+*.tsbuildinfo
+.metro-health-check*
+.kotlin/
+*.orig.*
+expo-env.d.ts
+app-example
+
+# Editor e assistente: configuração local de cada dev
+.vscode/
+.idea/
+.claude/
+CLAUDE.md
+
+# Modelos 3D brutos (GLB + texturas antes da otimização). Só assets/models/ entra no git.
+_raw_models/
