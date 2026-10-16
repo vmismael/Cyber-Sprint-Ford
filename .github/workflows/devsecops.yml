@@ -54,7 +54,7 @@ jobs:
         run: |
           ./gitleaks git . --config .gitleaks.toml --redact --no-banner \
             --report-format sarif --report-path gitleaks.sarif --exit-code 1
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with: { name: gitleaks-report, path: gitleaks.sarif, retention-days: 30 }
 
@@ -75,7 +75,7 @@ jobs:
             --config .semgrep/ford-rules.yml \
             --exclude node_modules --exclude backend/node_modules \
             --sarif-output semgrep.sarif .
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with: { name: semgrep-report, path: semgrep.sarif, retention-days: 30 }
 
@@ -98,7 +98,7 @@ jobs:
         run: |
           npm audit --json > audit-app.json || true
           (cd backend && npm audit --json > ../audit-api.json) || true
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with: { name: sca-report, path: 'audit-*.json', retention-days: 30 }
 
@@ -180,7 +180,7 @@ jobs:
       - name: SBOM (CycloneDX)
         if: always()
         run: ./trivy image --format cyclonedx --output sbom.cdx.json ford-api:${{ github.sha }} || true
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with: { name: sbom, path: sbom.cdx.json, retention-days: 90 }
 

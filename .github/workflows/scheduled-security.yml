@@ -36,7 +36,7 @@ jobs:
             -pass env:BACKUP_PASSPHRASE -in "$file" -out "$file.enc"
           rm "$file"
           sha256sum "$file.enc" | tee "$file.enc.sha256"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: db-backup
           path: 'ford-*.dump.enc*'
